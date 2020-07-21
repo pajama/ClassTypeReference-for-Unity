@@ -1,0 +1,6 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:VisualElement name="TypeField" style="flex-direction: row; justify-content: flex-end;">
+        <ui:Label text="Type Label" name="TypeLabel" style="margin-right: auto; padding-right: 10px; justify-content: flex-start; -unity-text-align: middle-left; flex-direction: row; align-items: stretch;" />
+        <uie:ToolbarMenu name="DropDown" style="flex-shrink: 1; flex-grow: 0.8;" />
+    </ui:VisualElement>
+</ui:UXML>

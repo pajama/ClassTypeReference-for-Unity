@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:VisualElement name="TypeField" style="flex-direction: row; justify-content: flex-end;">
+        <ui:Label text="TypeLabel" style="margin-right: auto; padding-right: 10px; justify-content: flex-start; -unity-text-align: middle-left; flex-direction: row; align-items: stretch;" />
+        <ui:VisualElement name="ButtonObjectContainer" style="flex-direction: row; flex-grow: 1;">
+            <ui:Button name="DropDownButton" style="background-image: url(&apos;/Assets/TypeReferences/Icons/hamburger-dropdown-wide-border.png&apos;); height: 18px; width: 36px; background-color: rgb(93, 93, 93); border-left-width: 1px; border-right-width: 1px; border-top-width: 1px; border-bottom-width: 1px; border-top-left-radius: 3px; border-bottom-left-radius: 3px; border-top-right-radius: 3px; border-bottom-right-radius: 3px; border-left-color: rgb(0, 0, 0); border-right-color: rgb(0, 0, 0); border-top-color: rgb(0, 0, 0); border-bottom-color: rgb(0, 0, 0); align-items: stretch; justify-content: space-around; margin-left: 0; margin-right: 0; margin-top: 1px; margin-bottom: 0;" />
+            <uie:ObjectField style="flex-grow: 1; align-items: stretch;" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
