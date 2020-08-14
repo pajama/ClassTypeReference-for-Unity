@@ -30,7 +30,7 @@
             AddNoneElementIfNotExcluded();
 
             var classGrouping = _constraints?.Grouping ?? ClassTypeConstraintAttribute.DefaultGrouping;
-            AddTypes(classGrouping);
+            AddTypesToDropdown(classGrouping);
 
             _menu.DropDown(position);
         }
@@ -50,7 +50,7 @@
             _menu.AddSeparator(string.Empty);
         }
 
-        private void AddTypes(ClassGrouping classGrouping)
+        private void AddTypesToDropdown(ClassGrouping classGrouping)
         {
             var types = GetFilteredTypes();
 
