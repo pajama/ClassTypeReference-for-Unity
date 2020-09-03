@@ -10,6 +10,7 @@
     /// </summary>
     internal class SerializedTypeReference
     {
+        private readonly SerializedObject _parentObject;
         private readonly SerializedProperty _typeNameProperty;
         private readonly SerializedProperty _guidProperty;
         private readonly SerializedProperty _guidAssignmentFailedProperty;
@@ -17,6 +18,7 @@
 
         public SerializedTypeReference(SerializedProperty typeReferenceProperty)
         {
+            _parentObject = typeReferenceProperty.serializedObject;
             _typeNameProperty = typeReferenceProperty.FindPropertyRelative(TypeReference.NameOfTypeNameField);
             _guidProperty = typeReferenceProperty.FindPropertyRelative(TypeReference.NameOfGuidField);
             _guidAssignmentFailedProperty = typeReferenceProperty.FindPropertyRelative(nameof(TypeReference.GuidAssignmentFailed));
@@ -31,30 +33,30 @@
             {
                 _typeNameProperty.stringValue = value;
                 _guidProperty.stringValue = GetClassGuidFromTypeName(value);
+                _parentObject.ApplyModifiedProperties();
             }
         }
+
+        public bool TypeNameHasMultipleDifferentValues => _typeNameProperty.hasMultipleDifferentValues;
 
         private bool GuidAssignmentFailed
         {
             get => _guidAssignmentFailedProperty.boolValue;
-            set => _guidAssignmentFailedProperty.boolValue = value;
+            set
+            {
+                _guidAssignmentFailedProperty.boolValue = value;
+                _parentObject.ApplyModifiedProperties();
+            }
         }
 
         private string GUID
         {
             get => _guidProperty.stringValue;
-            set => _guidProperty.stringValue = value;
-        }
-
-        public bool TypeNameHasMultipleDifferentValues => _typeNameProperty.hasMultipleDifferentValues;
-
-        private void SetGuidIfAssignmentFailed()
-        {
-            if ( ! GuidAssignmentFailed || string.IsNullOrEmpty(TypeNameAndAssembly))
-                return;
-
-            GuidAssignmentFailed = false;
-            GUID = GetClassGuidFromTypeName(TypeNameAndAssembly);
+            set
+            {
+                _guidProperty.stringValue = value;
+                _parentObject.ApplyModifiedProperties();
+            }
         }
 
         /// <summary>
@@ -80,10 +82,19 @@
                 TypeNameAndAssembly);
         }
 
-        private string GetClassGuidFromTypeName(string typeName)
+        private static string GetClassGuidFromTypeName(string typeName)
         {
             var type = Type.GetType(typeName);
             return TypeReference.GetClassGUID(type);
+        }
+
+        private void SetGuidIfAssignmentFailed()
+        {
+            if ( ! GuidAssignmentFailed || string.IsNullOrEmpty(TypeNameAndAssembly))
+                return;
+
+            GuidAssignmentFailed = false;
+            GUID = GetClassGuidFromTypeName(TypeNameAndAssembly);
         }
     }
 }

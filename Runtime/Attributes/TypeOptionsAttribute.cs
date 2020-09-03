@@ -46,6 +46,16 @@
         public string[] IncludeAdditionalAssemblies { get; set; }
 
         /// <summary>
+        /// Gets or sets the height of the dropdown. Default is zero.
+        /// </summary>
+        public int DropdownHeight;
+
+        /// <summary>
+        /// If the dropdown renders a tree-view, then setting this to true will ensure everything is expanded by default.
+        /// </summary>
+        public bool ExpandAllMenuItems { get; set; }
+
+        /// <summary>
         /// Determines whether the specified <see cref="Type"/> matches requirements set in the attribute.
         /// </summary>
         /// <param name="type">Type to test.</param>
