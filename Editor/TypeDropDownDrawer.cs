@@ -4,7 +4,6 @@
     using System.Collections.Generic;
     using System.Linq;
     using System.Reflection;
-    using Sirenix.OdinInspector.Editor;
     using Test.Editor.OdinAttributeDrawers;
     using UnityEngine;
     using TypeSelector = Odin.TypeSelector;
@@ -36,7 +35,7 @@
             return selector;
         }
 
-        private void ShowInPopup(ref TypeSelector selector, List<GenericSelectorItem<Type>> dropdownItems, Rect popupArea)
+        private void ShowInPopup(ref TypeSelector selector, SortedList<string, Type> dropdownItems, Rect popupArea)
         {
             popupArea.RoundUpCoordinates();
 
@@ -46,29 +45,30 @@
             selector.ShowInPopup(popupArea, new Vector2(dropdownWidth, dropdownHeight));
         }
 
-        private static int CalculateOptimalWidth(List<GenericSelectorItem<Type>> dropdownItems, TypeSelector selector)
+        private static int CalculateOptimalWidth(SortedList<string, Type> dropdownItems, TypeSelector selector)
         {
-            var itemTextValues = dropdownItems.Select(item => item.Name);
+            var itemTextValues = dropdownItems.Select(item => item.Key);
             var style = selector.SelectionTree.DefaultMenuStyle.DefaultLabelStyle;
-            return PopupHelper.CalculatePopupWidth(itemTextValues, style, '/', selector.FlattenedTree);
+            return PopupHelper.CalculatePopupWidth(itemTextValues, style, '/', false); // TODO: Make CalculatePopupWidth accept less variables
         }
 
-        private List<GenericSelectorItem<Type>> GetDropdownItems()
+        private SortedList<string, Type> GetDropdownItems()
         {
             var grouping = _attribute?.Grouping ?? TypeOptionsAttribute.DefaultGrouping;
 
             var types = GetFilteredTypes();
 
-            var dropdownItems = new List<GenericSelectorItem<Type>>(types.Count);
+            var typesWithFormattedNames = new SortedList<string, Type>();
 
             foreach (var nameTypePair in types)
             {
                 string menuLabel = TypeNameFormatter.Format(nameTypePair.Value, grouping);
-                if (! string.IsNullOrEmpty(menuLabel))
-                    dropdownItems.Add(new GenericSelectorItem<Type>(menuLabel, nameTypePair.Value));
+
+                if ( ! string.IsNullOrEmpty(menuLabel))
+                    typesWithFormattedNames.Add(menuLabel, nameTypePair.Value);
             }
 
-            return dropdownItems;
+            return typesWithFormattedNames;
         }
 
         private SortedList<string, Type> GetFilteredTypes()
@@ -100,7 +100,7 @@
             }
         }
 
-        private TypeSelector CreateSelector(List<GenericSelectorItem<Type>> genericSelectorItems)
+        private TypeSelector CreateSelector(SortedList<string, Type> genericSelectorItems)
         {
             var genericSelector = new TypeSelector(genericSelectorItems);
             genericSelector.SelectionTree.Config.DrawSearchToolbar = true;
