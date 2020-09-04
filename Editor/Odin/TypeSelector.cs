@@ -52,7 +52,12 @@
     {
       if (selected == null)
           return;
-      _selectionTree.EnumerateTree().Where(x => x.Value is Type).Where(x => EqualityComparer<Type>.Default.Equals((Type) x.Value, selected)).ToList().ForEach(x => x.Select(true));
+
+      foreach (var item in _selectionTree.EnumerateTree())
+      {
+        if ((Type) item.Value == selected)
+          item.Select(true);
+      }
     }
 
     /// <summary>Enables the single click to select.</summary>
