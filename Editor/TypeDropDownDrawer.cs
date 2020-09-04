@@ -7,6 +7,7 @@
     using Sirenix.OdinInspector.Editor;
     using Test.Editor.OdinAttributeDrawers;
     using UnityEngine;
+    using TypeSelector = Odin.TypeSelector;
 
     public class TypeDropDownDrawer
     {
@@ -27,7 +28,7 @@
                 (Action<IEnumerable<Type>>) (selectedValues => onTypeSelected(selectedValues.FirstOrDefault()));
         }
 
-        private OdinSelector<Type> ShowSelector(Rect popupArea)
+        private TypeSelector ShowSelector(Rect popupArea)
         {
             var dropdownItems = GetDropdownItems();
             var selector = CreateSelector(dropdownItems);
@@ -35,7 +36,7 @@
             return selector;
         }
 
-        private void ShowInPopup(ref GenericSelector<Type> selector, List<GenericSelectorItem<Type>> dropdownItems, Rect popupArea)
+        private void ShowInPopup(ref TypeSelector selector, List<GenericSelectorItem<Type>> dropdownItems, Rect popupArea)
         {
             popupArea.RoundUpCoordinates();
 
@@ -45,7 +46,7 @@
             selector.ShowInPopup(popupArea, new Vector2(dropdownWidth, dropdownHeight));
         }
 
-        private static int CalculateOptimalWidth(List<GenericSelectorItem<Type>> dropdownItems, GenericSelector<Type> selector)
+        private static int CalculateOptimalWidth(List<GenericSelectorItem<Type>> dropdownItems, TypeSelector selector)
         {
             var itemTextValues = dropdownItems.Select(item => item.Name);
             var style = selector.SelectionTree.DefaultMenuStyle.DefaultLabelStyle;
@@ -99,9 +100,9 @@
             }
         }
 
-        private GenericSelector<Type> CreateSelector(List<GenericSelectorItem<Type>> genericSelectorItems)
+        private TypeSelector CreateSelector(List<GenericSelectorItem<Type>> genericSelectorItems)
         {
-            var genericSelector = new GenericSelector<Type>(null, false, genericSelectorItems);
+            var genericSelector = new TypeSelector(genericSelectorItems);
             genericSelector.SelectionTree.Config.DrawSearchToolbar = true;
 
             genericSelector.EnableSingleClickToSelect();
