@@ -14,9 +14,9 @@
   public class TypeSelector
   {
     private readonly OdinMenuTree _selectionTree;
-    private readonly SortedList<string, Type> _nameTypeList;
+    private readonly List<TypeItem> _nameTypeList;
 
-    public TypeSelector(SortedList<string, Type> collection, Type selectedType, bool expandAllMenuItems)
+    public TypeSelector(List<TypeItem> collection, Type selectedType, bool expandAllMenuItems)
     {
       _nameTypeList = collection;
 
@@ -94,7 +94,7 @@
 
     private int CalculateOptimalWidth()
     {
-      var itemTextValues = _nameTypeList.Select(item => item.Key);
+      var itemTextValues = _nameTypeList.Select(item => item.Name);
       var style = _selectionTree.DefaultMenuStyle.DefaultLabelStyle;
       return PopupHelper.CalculatePopupWidth(itemTextValues, style, '/', false); // TODO: Make CalculatePopupWidth accept less variables
     }
@@ -181,7 +181,7 @@
         return;
 
       foreach (var item in _nameTypeList)
-        tree.AddObjectAtPath(item.Key, item.Value);
+        tree.AddObjectAtPath(item.Name, item.Type);
     }
   }
 }

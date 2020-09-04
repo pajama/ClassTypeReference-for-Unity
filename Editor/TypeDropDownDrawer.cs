@@ -5,47 +5,50 @@
     using System.Linq;
     using System.Reflection;
     using Odin;
+    using UnityEngine;
 
     public class TypeDropDownDrawer
     {
         private readonly TypeOptionsAttribute _attribute;
         private readonly Type _declaringType;
         private readonly TypeSelector _selector;
+        private readonly Type _selectedType;
 
         public TypeDropDownDrawer(string typeName, TypeOptionsAttribute attribute, Type declaringType)
         {
             _attribute = attribute;
             _declaringType = declaringType;
-
-            Type selectedType = TypeCache.GetType(typeName);
-            var dropdownItems = GetDropdownItems();
-            bool expandAllMenuItems = _attribute != null && _attribute.ExpandAllMenuItems;
-            _selector = new TypeSelector(dropdownItems, selectedType, expandAllMenuItems);
+            _selectedType = TypeCache.GetType(typeName);
         }
 
         public void Draw(Action<Type> onTypeSelected)
         {
-            int dropdownHeight = _attribute?.DropdownHeight ?? 0;
-            _selector.ShowInPopup(dropdownHeight);
+            var dropdownItems = GetDropdownItems();
+            bool expandAllMenuItems = _attribute != null && _attribute.ExpandAllMenuItems;
+            var selector = new TypeSelector(dropdownItems, _selectedType, expandAllMenuItems);
 
-            _selector.SelectionConfirmed +=
+            int dropdownHeight = _attribute?.DropdownHeight ?? 0;
+            // Debug.Log("Instead of showing in popup");
+            selector.ShowInPopup(dropdownHeight);
+
+            selector.SelectionConfirmed +=
                 (Action<IEnumerable<Type>>) (selectedValues => onTypeSelected(selectedValues.FirstOrDefault()));
         }
 
-        private SortedList<string, Type> GetDropdownItems()
+        private List<TypeItem> GetDropdownItems()
         {
             var grouping = _attribute?.Grouping ?? TypeOptionsAttribute.DefaultGrouping;
 
             var types = GetFilteredTypes();
 
-            var typesWithFormattedNames = new SortedList<string, Type>();
+            var typesWithFormattedNames = new List<TypeItem>(types.Capacity);
 
             foreach (var nameTypePair in types)
             {
                 string menuLabel = TypeNameFormatter.Format(nameTypePair.Value, grouping);
 
                 if ( ! string.IsNullOrEmpty(menuLabel))
-                    typesWithFormattedNames.Add(menuLabel, nameTypePair.Value);
+                    typesWithFormattedNames.Add(new TypeItem(menuLabel, nameTypePair.Value));
             }
 
             return typesWithFormattedNames;
@@ -78,6 +81,18 @@
                 if ( ! typeRelatedAssemblies.Contains(additionalAssembly))
                     typeRelatedAssemblies.Add(additionalAssembly);
             }
+        }
+    }
+
+    public class TypeItem
+    {
+        public readonly string Name;
+        public readonly Type Type;
+
+        public TypeItem(string name, Type type)
+        {
+            Name = name;
+            Type = type;
         }
     }
 }
