@@ -40,8 +40,9 @@
             popupArea.RoundUpCoordinates();
 
             int dropdownWidth = CalculateOptimalWidth(dropdownItems, selector);
+            int dropdownHeight = _attribute?.DropdownHeight ?? 0;
 
-            selector.ShowInPopup(popupArea, new Vector2(dropdownWidth, _attribute.DropdownHeight));
+            selector.ShowInPopup(popupArea, new Vector2(dropdownWidth, dropdownHeight));
         }
 
         private static int CalculateOptimalWidth(List<GenericSelectorItem<Type>> dropdownItems, GenericSelector<Type> selector)
@@ -107,7 +108,7 @@
 
             genericSelector.SetSelection(_selectedType);
 
-            if (_attribute.ExpandAllMenuItems)
+            if (_attribute != null && _attribute.ExpandAllMenuItems)
                 genericSelector.SelectionTree.EnumerateTree(folder => folder.Toggled = true);
 
             return genericSelector;

@@ -1,7 +1,8 @@
 {
     "name": "TypeReferences.Editor",
     "references": [
-        "GUID:ea6a6314f279f814facc8c48a7d3c9f1"
+        "GUID:ea6a6314f279f814facc8c48a7d3c9f1",
+        "GUID:14547a40d0e3ca947bf0fedec58ed012"
     ],
     "includePlatforms": [
         "Editor"
