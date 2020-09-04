@@ -4,52 +4,32 @@
     using System.Collections.Generic;
     using System.Linq;
     using System.Reflection;
-    using Test.Editor.OdinAttributeDrawers;
-    using UnityEngine;
-    using TypeSelector = Odin.TypeSelector;
+    using Odin;
 
     public class TypeDropDownDrawer
     {
-        private readonly Type _selectedType;
         private readonly TypeOptionsAttribute _attribute;
         private readonly Type _declaringType;
+        private readonly TypeSelector _selector;
 
         public TypeDropDownDrawer(string typeName, TypeOptionsAttribute attribute, Type declaringType)
         {
-            _selectedType = TypeCache.GetType(typeName);
             _attribute = attribute;
             _declaringType = declaringType;
+
+            Type selectedType = TypeCache.GetType(typeName);
+            var dropdownItems = GetDropdownItems();
+            bool expandAllMenuItems = _attribute != null && _attribute.ExpandAllMenuItems;
+            _selector = new TypeSelector(dropdownItems, selectedType, expandAllMenuItems);
         }
 
         public void Draw(Action<Type> onTypeSelected)
         {
-            ShowSelector(new Rect(Event.current.mousePosition, Vector2.zero)).SelectionConfirmed +=
-                (Action<IEnumerable<Type>>) (selectedValues => onTypeSelected(selectedValues.FirstOrDefault()));
-        }
-
-        private TypeSelector ShowSelector(Rect popupArea)
-        {
-            var dropdownItems = GetDropdownItems();
-            var selector = CreateSelector(dropdownItems);
-            ShowInPopup(ref selector, dropdownItems, popupArea);
-            return selector;
-        }
-
-        private void ShowInPopup(ref TypeSelector selector, SortedList<string, Type> dropdownItems, Rect popupArea)
-        {
-            popupArea.RoundUpCoordinates();
-
-            int dropdownWidth = CalculateOptimalWidth(dropdownItems, selector);
             int dropdownHeight = _attribute?.DropdownHeight ?? 0;
+            _selector.ShowInPopup(dropdownHeight);
 
-            selector.ShowInPopup(popupArea, new Vector2(dropdownWidth, dropdownHeight));
-        }
-
-        private static int CalculateOptimalWidth(SortedList<string, Type> dropdownItems, TypeSelector selector)
-        {
-            var itemTextValues = dropdownItems.Select(item => item.Key);
-            var style = selector.SelectionTree.DefaultMenuStyle.DefaultLabelStyle;
-            return PopupHelper.CalculatePopupWidth(itemTextValues, style, '/', false); // TODO: Make CalculatePopupWidth accept less variables
+            _selector.SelectionConfirmed +=
+                (Action<IEnumerable<Type>>) (selectedValues => onTypeSelected(selectedValues.FirstOrDefault()));
         }
 
         private SortedList<string, Type> GetDropdownItems()
@@ -98,21 +78,6 @@
                 if ( ! typeRelatedAssemblies.Contains(additionalAssembly))
                     typeRelatedAssemblies.Add(additionalAssembly);
             }
-        }
-
-        private TypeSelector CreateSelector(SortedList<string, Type> genericSelectorItems)
-        {
-            var genericSelector = new TypeSelector(genericSelectorItems);
-            genericSelector.SelectionTree.Config.DrawSearchToolbar = true;
-
-            genericSelector.EnableSingleClickToSelect();
-
-            genericSelector.SetSelection(_selectedType);
-
-            if (_attribute != null && _attribute.ExpandAllMenuItems)
-                genericSelector.SelectionTree.EnumerateTree(folder => folder.Toggled = true);
-
-            return genericSelector;
         }
     }
 }

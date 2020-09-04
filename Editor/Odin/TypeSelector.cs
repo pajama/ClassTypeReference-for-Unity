@@ -7,38 +7,40 @@
   using Sirenix.OdinInspector.Editor;
   using Sirenix.Utilities;
   using Sirenix.Utilities.Editor;
+  using Test.Editor.OdinAttributeDrawers;
   using UnityEditor;
   using UnityEngine;
 
   public class TypeSelector
   {
-    private static EditorWindow _selectorFieldWindow;
-    private static IEnumerable<Type> _selectedValues;
-    private static bool _selectionWasConfirmed;
-    private static bool _selectionWasChanged;
-    private static GUIStyle _titleStyle;
-    private static bool _wasKeyboard;
-    private static int _prevKeyboardId;
-    private static GUIContent _tmpValueLabel;
+    private readonly OdinMenuTree _selectionTree;
+    private readonly SortedList<string, Type> _nameTypeList;
 
-    [SerializeField, HideInInspector]
-    private readonly OdinMenuTreeDrawingConfig _config = new OdinMenuTreeDrawingConfig
+    public TypeSelector(SortedList<string, Type> collection, Type selectedType, bool expandAllMenuItems)
     {
-      SearchToolbarHeight = 22,
-      AutoScrollOnSelectionChanged = true,
-      DefaultMenuStyle = new OdinMenuStyle { Height = 22 }
-    };
+      _nameTypeList = collection;
 
-    private readonly SortedList<string, Type> _genericSelectorCollection;
+      var config = new OdinMenuTreeDrawingConfig
+      {
+        SearchToolbarHeight = 22,
+        AutoScrollOnSelectionChanged = true,
+        DefaultMenuStyle = new OdinMenuStyle { Height = 22 },
+        DrawSearchToolbar = true
+      };
 
-    private Func<Type, string> _getMenuItemName;
-    private bool _requestCheckboxUpdate;
-    private OdinMenuTree _selectionTree;
+      _selectionTree = new OdinMenuTree(true) { Config = config };
+      OdinMenuTree.ActiveMenuTree = _selectionTree;
+      BuildSelectionTree(_selectionTree);
+      _selectionTree.Selection.SelectionConfirmed += (Action<OdinMenuTreeSelection>) (x =>
+      {
+        SelectionConfirmed?.Invoke(GetCurrentSelection());
+      });
 
-    public TypeSelector(
-      SortedList<string, Type> collection)
-    {
-      _genericSelectorCollection = collection;
+      EnableSingleClickToSelect();
+      SetSelection(selectedType);
+
+      if (expandAllMenuItems)
+        _selectionTree.EnumerateTree(folder => folder.Toggled = true);
     }
 
     /// <summary>
@@ -46,36 +48,17 @@
     /// </summary>
     public event Action<IEnumerable<Type>> SelectionConfirmed;
 
-    /// <summary>Gets the selection menu tree.</summary>
-    public OdinMenuTree SelectionTree
-    {
-      get
-      {
-        if (_selectionTree != null)
-          return _selectionTree;
-
-        _selectionTree = new OdinMenuTree(true) { Config = _config };
-        OdinMenuTree.ActiveMenuTree = _selectionTree;
-        BuildSelectionTree(_selectionTree);
-        _selectionTree.Selection.SelectionConfirmed += (Action<OdinMenuTreeSelection>) (x =>
-        {
-          SelectionConfirmed?.Invoke(GetCurrentSelection());
-        });
-        return _selectionTree;
-      }
-    }
-
-    public void SetSelection(Type selected)
+    private void SetSelection(Type selected)
     {
       if (selected == null)
           return;
-      SelectionTree.EnumerateTree().Where(x => x.Value is Type).Where(x => EqualityComparer<Type>.Default.Equals((Type) x.Value, selected)).ToList().ForEach(x => x.Select(true));
+      _selectionTree.EnumerateTree().Where(x => x.Value is Type).Where(x => EqualityComparer<Type>.Default.Equals((Type) x.Value, selected)).ToList().ForEach(x => x.Select(true));
     }
 
     /// <summary>Enables the single click to select.</summary>
-    public void EnableSingleClickToSelect()
+    private void EnableSingleClickToSelect()
     {
-      SelectionTree.EnumerateTree(x =>
+      _selectionTree.EnumerateTree(x =>
       {
         x.OnDrawItem -= EnableSingleClickToSelect;
         x.OnDrawItem -= EnableSingleClickToSelect;
@@ -86,10 +69,14 @@
     /// <summary>
     /// Opens up the selector instance in a popup at the specified rect position.
     /// </summary>
-    public void ShowInPopup(Rect btnRect, Vector2 windowSize)
+    public void ShowInPopup(int dropdownHeight)
     {
+      var popupArea = new Rect(Event.current.mousePosition, Vector2.zero);
+      int dropdownWidth = CalculateOptimalWidth();
+      var windowSize = new Vector2(dropdownWidth, dropdownHeight);
+
       EditorWindow focusedWindow = EditorWindow.focusedWindow;
-      OdinEditorWindow window = OdinEditorWindow.InspectObjectInDropDown(this, btnRect, windowSize);
+      OdinEditorWindow window = OdinEditorWindow.InspectObjectInDropDown(this, popupArea, windowSize);
       SetupWindow(window, focusedWindow);
     }
 
@@ -105,6 +92,13 @@
       Event.current.Use();
     }
 
+    private int CalculateOptimalWidth()
+    {
+      var itemTextValues = _nameTypeList.Select(item => item.Key);
+      var style = _selectionTree.DefaultMenuStyle.DefaultLabelStyle;
+      return PopupHelper.CalculatePopupWidth(itemTextValues, style, '/', false); // TODO: Make CalculatePopupWidth accept less variables
+    }
+
     /// <summary>
     /// Draws the selection tree. This gets drawn using the OnInspectorGUI attribute.
     /// </summary>
@@ -112,32 +106,29 @@
     [PropertyOrder(-1)]
     private void DrawSelectionTree()
     {
-      if (_requestCheckboxUpdate && Event.current.type == EventType.Repaint)
-        _requestCheckboxUpdate = false;
-
       Rect rect1 = EditorGUILayout.BeginVertical();
       EditorGUI.DrawRect(rect1, SirenixGUIStyles.DarkEditorBackground);
       GUILayout.Space(1f);
-      bool drawSearchToolbar1 = SelectionTree.Config.DrawSearchToolbar;
+      bool drawSearchToolbar1 = _selectionTree.Config.DrawSearchToolbar;
       if (drawSearchToolbar1)
       {
-        SirenixEditorGUI.BeginHorizontalToolbar(SelectionTree.Config.SearchToolbarHeight);
-        SelectionTree.DrawSearchToolbar(GUIStyle.none);
+        SirenixEditorGUI.BeginHorizontalToolbar(_selectionTree.Config.SearchToolbarHeight);
+        _selectionTree.DrawSearchToolbar(GUIStyle.none);
         EditorGUI.DrawRect(GUILayoutUtility.GetLastRect().AlignLeft(1f), SirenixGUIStyles.BorderColor);
         SirenixEditorGUI.EndHorizontalToolbar();
       }
 
-      bool drawSearchToolbar2 = SelectionTree.Config.DrawSearchToolbar;
-      SelectionTree.Config.DrawSearchToolbar = false;
-      if (SelectionTree.MenuItems.Count == 0)
+      bool drawSearchToolbar2 = _selectionTree.Config.DrawSearchToolbar;
+      _selectionTree.Config.DrawSearchToolbar = false;
+      if (_selectionTree.MenuItems.Count == 0)
       {
         GUILayout.BeginVertical(SirenixGUIStyles.ContentPadding);
         SirenixEditorGUI.InfoMessageBox("There are no possible values to select.");
         GUILayout.EndVertical();
       }
 
-      SelectionTree.DrawMenuTree();
-      SelectionTree.Config.DrawSearchToolbar = drawSearchToolbar2;
+      _selectionTree.DrawMenuTree();
+      _selectionTree.Config.DrawSearchToolbar = drawSearchToolbar2;
       SirenixEditorGUI.DrawBorders(rect1, 1);
       EditorGUILayout.EndVertical();
     }
@@ -147,7 +138,7 @@
       int prevFocusId = GUIUtility.hotControl;
       int prevKeyboardFocus = GUIUtility.keyboardControl;
       window.WindowPadding = default;
-      SelectionTree.Selection.SelectionConfirmed += (Action<OdinMenuTreeSelection>) (x =>
+      _selectionTree.Selection.SelectionConfirmed += (Action<OdinMenuTreeSelection>) (x =>
       {
         bool ctrl = Event.current != null && Event.current.modifiers != EventModifiers.Control;
         UnityEditorEventUtility.DelayAction(() =>
@@ -178,7 +169,7 @@
 
     private IEnumerable<Type> GetCurrentSelection()
     {
-      return SelectionTree.Selection.Select(x => x.Value).OfType<Type>();
+      return _selectionTree.Selection.Select(x => x.Value).OfType<Type>();
     }
 
     /// <summary>Builds the selection tree.</summary>
@@ -186,11 +177,10 @@
     {
       tree.Selection.SupportsMultiSelect = false;
       tree.DefaultMenuStyle = OdinMenuStyle.TreeViewStyle;
-      _getMenuItemName = _getMenuItemName ?? (x => (object) x != null ? x.ToString() : string.Empty);
-      if (_genericSelectorCollection == null)
+      if (_nameTypeList == null)
         return;
 
-      foreach (var item in _genericSelectorCollection)
+      foreach (var item in _nameTypeList)
         tree.AddObjectAtPath(item.Key, item.Value);
     }
   }
