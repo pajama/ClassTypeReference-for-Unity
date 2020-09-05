@@ -8,7 +8,6 @@
   using Sirenix.Utilities;
   using Sirenix.Utilities.Editor;
   using Test.Editor.OdinAttributeDrawers;
-  using TrentTobler.Collections;
   using UnityEditor;
   using UnityEngine;
 
