@@ -12,10 +12,12 @@
         private readonly Type _declaringType;
         private readonly TypeSelector _selector;
         private readonly Type _selectedType;
+        private readonly Grouping _grouping;
 
         public TypeDropDownDrawer(string typeName, TypeOptionsAttribute attribute, Type declaringType)
         {
             _attribute = attribute;
+            _grouping = _attribute?.Grouping ?? TypeOptionsAttribute.DefaultGrouping;
             _declaringType = declaringType;
             _selectedType = TypeCache.GetType(typeName);
         }
@@ -37,12 +39,33 @@
 
         private SortedSet<TypeItem> GetDropdownItems()
         {
-            var grouping = _attribute?.Grouping ?? TypeOptionsAttribute.DefaultGrouping;
-            var types = GetFilteredTypes(grouping);
+            var types = GetFilteredTypes();
+
+            foreach (var typeItem in GetIncludedTypes())
+                types.Add(typeItem);
+
             return types;
         }
 
-        private SortedSet<TypeItem> GetFilteredTypes(Grouping grouping)
+        private List<TypeItem> GetIncludedTypes()
+        {
+            var typesToInclude = _attribute?.IncludeTypes;
+
+            if (typesToInclude == null)
+                return new List<TypeItem>();
+
+            var typeItems = new List<TypeItem>(typesToInclude.Length);
+
+            foreach (Type typeToInclude in _attribute.IncludeTypes)
+            {
+                if (typeToInclude != null && typeToInclude.FullName != null)
+                    typeItems.Add(new TypeItem(typeToInclude, _grouping));
+            }
+
+            return typeItems;
+        }
+
+        private SortedSet<TypeItem> GetFilteredTypes()
         {
             var typeRelatedAssemblies = TypeCollector.GetAssembliesTypeHasAccessTo(_declaringType);
 
@@ -59,7 +82,7 @@
             {
                 var type = filteredTypes[i];
                 if (type.FullName != null)
-                    sortedTypes.Add(new TypeItem(type, grouping));
+                    sortedTypes.Add(new TypeItem(type, _grouping));
             }
 
             return sortedTypes;
