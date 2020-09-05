@@ -23,13 +23,26 @@
 
         public void Draw(Action<Type> onTypeSelected)
         {
-            var dropdownItems = GetDropdownItems();
+            List<TypeItem> dropdownItems = null;
+            Timer.LogTime("GetDropdownItems", () =>
+            {
+                dropdownItems = GetDropdownItems();
+            });
+
             bool expandAllMenuItems = _attribute != null && _attribute.ExpandAllMenuItems;
-            var selector = new TypeSelector(dropdownItems, _selectedType, expandAllMenuItems);
+
+            TypeSelector selector = null;
+            Timer.LogTime("TypeSelector constructor", () =>
+            {
+                selector = new TypeSelector(dropdownItems, _selectedType, expandAllMenuItems);
+            });
 
             int dropdownHeight = _attribute?.DropdownHeight ?? 0;
-            // Debug.Log("Instead of showing in popup");
-            selector.ShowInPopup(dropdownHeight);
+
+            Timer.LogTime("ShowInPopup", () =>
+            {
+                selector.ShowInPopup(dropdownHeight);
+            });
 
             selector.SelectionConfirmed +=
                 (Action<IEnumerable<Type>>) (selectedValues => onTypeSelected(selectedValues.FirstOrDefault()));
