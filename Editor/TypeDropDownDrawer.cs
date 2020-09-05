@@ -5,9 +5,6 @@
     using System.Linq;
     using System.Reflection;
     using Odin;
-    using TrentTobler.Collections;
-    using UnityEngine;
-    using Debug = System.Diagnostics.Debug;
 
     public class TypeDropDownDrawer
     {
@@ -25,19 +22,11 @@
 
         public void Draw(Action<Type> onTypeSelected)
         {
-            BTree<TypeItem> dropdownItems = null;
-            Timer.LogTime("GetDropdownItems", () =>
-            {
-                dropdownItems = GetDropdownItems();
-            });
+            var dropdownItems = GetDropdownItems();
 
             bool expandAllMenuItems = _attribute != null && _attribute.ExpandAllMenuItems;
 
-            TypeSelector selector = null;
-            Timer.LogTime("TypeSelector constructor", () =>
-            {
-                selector = new TypeSelector(dropdownItems, _selectedType, expandAllMenuItems);
-            });
+            var selector = new TypeSelector(dropdownItems, _selectedType, expandAllMenuItems);
 
             int dropdownHeight = _attribute?.DropdownHeight ?? 0;
             selector.ShowInPopup(dropdownHeight);
@@ -46,14 +35,14 @@
                 (Action<IEnumerable<Type>>) (selectedValues => onTypeSelected(selectedValues.FirstOrDefault()));
         }
 
-        private BTree<TypeItem> GetDropdownItems()
+        private SortedSet<TypeItem> GetDropdownItems()
         {
             var grouping = _attribute?.Grouping ?? TypeOptionsAttribute.DefaultGrouping;
             var types = GetFilteredTypes(grouping);
             return types;
         }
 
-        private BTree<TypeItem> GetFilteredTypes(Grouping grouping)
+        private SortedSet<TypeItem> GetFilteredTypes(Grouping grouping)
         {
             var typeRelatedAssemblies = TypeCollector.GetAssembliesTypeHasAccessTo(_declaringType);
 
@@ -64,8 +53,8 @@
                 typeRelatedAssemblies,
                 _attribute);
 
-            var sortedTypes = new BTree<TypeItem>(new TypeItemComparer(), filteredTypes.Count);
-            // filteredTypes.ToDictionary(type => type.FullName)
+            var sortedTypes = new SortedSet<TypeItem>(new TypeItemComparer());
+
             for (int i = 0; i < filteredTypes.Count; i++)
             {
                 var type = filteredTypes[i];
@@ -87,26 +76,6 @@
                 if ( ! typeRelatedAssemblies.Contains(additionalAssembly))
                     typeRelatedAssemblies.Add(additionalAssembly);
             }
-        }
-    }
-
-    public readonly struct TypeItem
-    {
-        public readonly string Name;
-        public readonly Type Type;
-
-        public TypeItem(Type type, Grouping grouping)
-        {
-            Name = TypeNameFormatter.Format(type, grouping);
-            Type = type;
-        }
-    }
-
-    public class TypeItemComparer : IComparer<TypeItem>
-    {
-        public int Compare(TypeItem x, TypeItem y)
-        {
-            return string.Compare(x.Name, y.Name, StringComparison.Ordinal);
         }
     }
 }

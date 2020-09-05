@@ -15,9 +15,9 @@
   public class TypeSelector
   {
     private readonly OdinMenuTree _selectionTree;
-    private readonly BTree<TypeItem> _nameTypeList;
+    private readonly SortedSet<TypeItem> _nameTypeList;
 
-    public TypeSelector(BTree<TypeItem> collection, Type selectedType, bool expandAllMenuItems)
+    public TypeSelector(SortedSet<TypeItem> collection, Type selectedType, bool expandAllMenuItems)
     {
       _nameTypeList = collection;
 
@@ -186,9 +186,8 @@
       if (_nameTypeList == null)
         return;
 
-      for (int i = 0; i < _nameTypeList.Count; i++)
+      foreach (var item in _nameTypeList)
       {
-        var item = _nameTypeList.At(i);
         tree.AddObjectAtPath(item.Name, item.Type);
       }
     }
