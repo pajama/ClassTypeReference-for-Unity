@@ -13,14 +13,14 @@
 
   public class TypeSelector
   {
-    private readonly OdinMenuTree _selectionTree;
+    private readonly MenuTree _selectionTree;
     private readonly SortedSet<TypeItem> _nameTypeList;
 
     public TypeSelector(SortedSet<TypeItem> collection, Type selectedType, bool expandAllMenuItems)
     {
       _nameTypeList = collection;
 
-      var config = new OdinMenuTreeDrawingConfig
+      var config = new MenuTreeDrawingConfig
       {
         SearchToolbarHeight = 22,
         AutoScrollOnSelectionChanged = true,
@@ -28,10 +28,10 @@
         DrawSearchToolbar = true
       };
 
-      _selectionTree = new OdinMenuTree(true) { Config = config };
-      OdinMenuTree.ActiveMenuTree = _selectionTree;
+      _selectionTree = new MenuTree(true) { Config = config };
+      MenuTree.ActiveMenuTree = _selectionTree;
       BuildSelectionTree(_selectionTree);
-      _selectionTree.Selection.SelectionConfirmed += (Action<OdinMenuTreeSelection>) (x =>
+      _selectionTree.Selection.SelectionConfirmed += (Action<MenuTreeSelection>) (x =>
       {
         SelectionConfirmed?.Invoke(GetCurrentSelection());
       });
@@ -85,7 +85,7 @@
       SetupWindow(window, focusedWindow);
     }
 
-    private static void EnableSingleClickToSelect(OdinMenuItem obj)
+    private static void EnableSingleClickToSelect(MenuItem obj)
     {
       EventType type = Event.current.type;
       if (type == EventType.Layout || !obj.Rect.Contains(Event.current.mousePosition))
@@ -143,7 +143,7 @@
       int prevFocusId = GUIUtility.hotControl;
       int prevKeyboardFocus = GUIUtility.keyboardControl;
       window.WindowPadding = default;
-      _selectionTree.Selection.SelectionConfirmed += (Action<OdinMenuTreeSelection>) (x =>
+      _selectionTree.Selection.SelectionConfirmed += (Action<MenuTreeSelection>) (x =>
       {
         bool ctrl = Event.current != null && Event.current.modifiers != EventModifiers.Control;
         UnityEditorEventUtility.DelayAction(() =>
@@ -178,7 +178,7 @@
     }
 
     /// <summary>Builds the selection tree.</summary>
-    private void BuildSelectionTree(OdinMenuTree tree)
+    private void BuildSelectionTree(MenuTree tree)
     {
       tree.Selection.SupportsMultiSelect = false;
       tree.DefaultMenuStyle = OdinMenuStyle.TreeViewStyle;
