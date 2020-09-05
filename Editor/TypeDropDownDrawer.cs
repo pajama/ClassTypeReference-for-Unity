@@ -23,7 +23,7 @@
 
         public void Draw(Action<Type> onTypeSelected)
         {
-            List<TypeItem> dropdownItems = null;
+            SortedList<string, Type> dropdownItems = null;
             Timer.LogTime("GetDropdownItems", () =>
             {
                 dropdownItems = GetDropdownItems();
@@ -48,20 +48,21 @@
                 (Action<IEnumerable<Type>>) (selectedValues => onTypeSelected(selectedValues.FirstOrDefault()));
         }
 
-        private List<TypeItem> GetDropdownItems()
+        private SortedList<string, Type> GetDropdownItems()
         {
             var grouping = _attribute?.Grouping ?? TypeOptionsAttribute.DefaultGrouping;
 
             var types = GetFilteredTypes();
 
-            var typesWithFormattedNames = new List<TypeItem>(types.Capacity);
+            var typesWithFormattedNames = new SortedList<string, Type>(types.Capacity);
 
             foreach (var nameTypePair in types)
             {
                 string menuLabel = TypeNameFormatter.Format(nameTypePair.Value, grouping);
 
-                if ( ! string.IsNullOrEmpty(menuLabel))
-                    typesWithFormattedNames.Add(new TypeItem(menuLabel, nameTypePair.Value));
+                if (!string.IsNullOrEmpty(menuLabel))
+                    // typesWithFormattedNames.Add(new TypeItem(menuLabel, nameTypePair.Value));
+                    typesWithFormattedNames.Add(menuLabel, nameTypePair.Value);
             }
 
             return typesWithFormattedNames;
