@@ -40,11 +40,7 @@
             });
 
             int dropdownHeight = _attribute?.DropdownHeight ?? 0;
-
-            Timer.LogTime("ShowInPopup", () =>
-            {
-                selector.ShowInPopup(dropdownHeight);
-            });
+            selector.ShowInPopup(dropdownHeight);
 
             selector.SelectionConfirmed +=
                 (Action<IEnumerable<Type>>) (selectedValues => onTypeSelected(selectedValues.FirstOrDefault()));
@@ -53,27 +49,11 @@
         private BTree<TypeItem> GetDropdownItems()
         {
             var grouping = _attribute?.Grouping ?? TypeOptionsAttribute.DefaultGrouping;
-
-            var types = GetFilteredTypes();
-
-            var typesWithFormattedNames = new BTree<TypeItem>(new TypeItemComparer(), types.Count);
-
-            for (int i = 0; i < types.Count; i++)
-            {
-                var typeItem = types.At(i);
-                string menuLabel = TypeNameFormatter.Format(typeItem.Type, grouping);
-
-                if (!string.IsNullOrEmpty(menuLabel))
-                {
-                    typeItem.Name = menuLabel;
-                    typesWithFormattedNames.Add(typeItem);
-                }
-            }
-
-            return typesWithFormattedNames;
+            var types = GetFilteredTypes(grouping);
+            return types;
         }
 
-        private BTree<TypeItem> GetFilteredTypes()
+        private BTree<TypeItem> GetFilteredTypes(Grouping grouping)
         {
             var typeRelatedAssemblies = TypeCollector.GetAssembliesTypeHasAccessTo(_declaringType);
 
@@ -90,7 +70,7 @@
             {
                 var type = filteredTypes[i];
                 if (type.FullName != null)
-                    sortedTypes.Add(new TypeItem(type.FullName, type));
+                    sortedTypes.Add(new TypeItem(type, grouping));
             }
 
             return sortedTypes;
@@ -110,14 +90,14 @@
         }
     }
 
-    public class TypeItem
+    public readonly struct TypeItem
     {
-        public string Name;
+        public readonly string Name;
         public readonly Type Type;
 
-        public TypeItem(string name, Type type)
+        public TypeItem(Type type, Grouping grouping)
         {
-            Name = name;
+            Name = TypeNameFormatter.Format(type, grouping);
             Type = type;
         }
     }
@@ -126,8 +106,6 @@
     {
         public int Compare(TypeItem x, TypeItem y)
         {
-            Debug.Assert(x != null, nameof(x) + " != null");
-            Debug.Assert(y != null, nameof(y) + " != null");
             return string.Compare(x.Name, y.Name, StringComparison.Ordinal);
         }
     }
