@@ -7,6 +7,7 @@
     using Odin;
     using TrentTobler.Collections;
     using UnityEngine;
+    using Debug = System.Diagnostics.Debug;
 
     public class TypeDropDownDrawer
     {
@@ -24,7 +25,7 @@
 
         public void Draw(Action<Type> onTypeSelected)
         {
-            BTreeDictionary<string, Type> dropdownItems = null;
+            BTree<TypeItem> dropdownItems = null;
             Timer.LogTime("GetDropdownItems", () =>
             {
                 dropdownItems = GetDropdownItems();
@@ -49,27 +50,30 @@
                 (Action<IEnumerable<Type>>) (selectedValues => onTypeSelected(selectedValues.FirstOrDefault()));
         }
 
-        private BTreeDictionary<string, Type> GetDropdownItems()
+        private BTree<TypeItem> GetDropdownItems()
         {
             var grouping = _attribute?.Grouping ?? TypeOptionsAttribute.DefaultGrouping;
 
             var types = GetFilteredTypes();
 
-            var typesWithFormattedNames = new BTreeDictionary<string, Type>(types.Count);
+            var typesWithFormattedNames = new BTree<TypeItem>(new TypeItemComparer(), types.Count);
 
-            foreach (var nameTypePair in types)
+            for (int i = 0; i < types.Count; i++)
             {
-                string menuLabel = TypeNameFormatter.Format(nameTypePair.Value, grouping);
+                var typeItem = types.At(i);
+                string menuLabel = TypeNameFormatter.Format(typeItem.Type, grouping);
 
                 if (!string.IsNullOrEmpty(menuLabel))
-                    // typesWithFormattedNames.Add(new TypeItem(menuLabel, nameTypePair.Value));
-                    typesWithFormattedNames.Add(menuLabel, nameTypePair.Value);
+                {
+                    typeItem.Name = menuLabel;
+                    typesWithFormattedNames.Add(typeItem);
+                }
             }
 
             return typesWithFormattedNames;
         }
 
-        private BTreeDictionary<string, Type> GetFilteredTypes()
+        private BTree<TypeItem> GetFilteredTypes()
         {
             var typeRelatedAssemblies = TypeCollector.GetAssembliesTypeHasAccessTo(_declaringType);
 
@@ -80,13 +84,13 @@
                 typeRelatedAssemblies,
                 _attribute);
 
-            var sortedTypes = new BTreeDictionary<string, Type>(filteredTypes.Count);
+            var sortedTypes = new BTree<TypeItem>(new TypeItemComparer(), filteredTypes.Count);
             // filteredTypes.ToDictionary(type => type.FullName)
             for (int i = 0; i < filteredTypes.Count; i++)
             {
                 var type = filteredTypes[i];
                 if (type.FullName != null)
-                    sortedTypes.Add(type.FullName, type);
+                    sortedTypes.Add(new TypeItem(type.FullName, type));
             }
 
             return sortedTypes;
@@ -108,13 +112,23 @@
 
     public class TypeItem
     {
-        public readonly string Name;
+        public string Name;
         public readonly Type Type;
 
         public TypeItem(string name, Type type)
         {
             Name = name;
             Type = type;
+        }
+    }
+
+    public class TypeItemComparer : IComparer<TypeItem>
+    {
+        public int Compare(TypeItem x, TypeItem y)
+        {
+            Debug.Assert(x != null, nameof(x) + " != null");
+            Debug.Assert(y != null, nameof(y) + " != null");
+            return string.Compare(x.Name, y.Name, StringComparison.Ordinal);
         }
     }
 }
