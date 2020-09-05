@@ -8,15 +8,16 @@
   using Sirenix.Utilities;
   using Sirenix.Utilities.Editor;
   using Test.Editor.OdinAttributeDrawers;
+  using TrentTobler.Collections;
   using UnityEditor;
   using UnityEngine;
 
   public class TypeSelector
   {
     private readonly OdinMenuTree _selectionTree;
-    private readonly SortedList<string, Type> _nameTypeList;
+    private readonly BTreeDictionary<string, Type> _nameTypeList;
 
-    public TypeSelector(SortedList<string, Type> collection, Type selectedType, bool expandAllMenuItems)
+    public TypeSelector(BTreeDictionary<string, Type> collection, Type selectedType, bool expandAllMenuItems)
     {
       _nameTypeList = collection;
 

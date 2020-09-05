@@ -5,6 +5,7 @@
     using System.Linq;
     using System.Reflection;
     using Odin;
+    using TrentTobler.Collections;
     using UnityEngine;
 
     public class TypeDropDownDrawer
@@ -23,7 +24,7 @@
 
         public void Draw(Action<Type> onTypeSelected)
         {
-            SortedList<string, Type> dropdownItems = null;
+            BTreeDictionary<string, Type> dropdownItems = null;
             Timer.LogTime("GetDropdownItems", () =>
             {
                 dropdownItems = GetDropdownItems();
@@ -48,13 +49,13 @@
                 (Action<IEnumerable<Type>>) (selectedValues => onTypeSelected(selectedValues.FirstOrDefault()));
         }
 
-        private SortedList<string, Type> GetDropdownItems()
+        private BTreeDictionary<string, Type> GetDropdownItems()
         {
             var grouping = _attribute?.Grouping ?? TypeOptionsAttribute.DefaultGrouping;
 
             var types = GetFilteredTypes();
 
-            var typesWithFormattedNames = new SortedList<string, Type>(types.Capacity);
+            var typesWithFormattedNames = new BTreeDictionary<string, Type>(types.Count);
 
             foreach (var nameTypePair in types)
             {
@@ -68,7 +69,7 @@
             return typesWithFormattedNames;
         }
 
-        private SortedList<string, Type> GetFilteredTypes()
+        private BTreeDictionary<string, Type> GetFilteredTypes()
         {
             var typeRelatedAssemblies = TypeCollector.GetAssembliesTypeHasAccessTo(_declaringType);
 
@@ -79,7 +80,14 @@
                 typeRelatedAssemblies,
                 _attribute);
 
-            var sortedTypes = new SortedList<string, Type>(filteredTypes.ToDictionary(type => type.FullName));
+            var sortedTypes = new BTreeDictionary<string, Type>(filteredTypes.Count);
+            // filteredTypes.ToDictionary(type => type.FullName)
+            for (int i = 0; i < filteredTypes.Count; i++)
+            {
+                var type = filteredTypes[i];
+                if (type.FullName != null)
+                    sortedTypes.Add(type.FullName, type);
+            }
 
             return sortedTypes;
         }
