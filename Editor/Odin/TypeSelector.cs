@@ -16,22 +16,17 @@
     private readonly MenuTree _selectionTree;
     private readonly SortedSet<TypeItem> _nameTypeList;
 
-    public TypeSelector(SortedSet<TypeItem> collection, Type selectedType, bool expandAllMenuItems)
+    public TypeSelector(SortedSet<TypeItem> collection, Type selectedType, bool expandAllMenuItems, Action<Type> onSelectionConfirmed)
     {
       _nameTypeList = collection;
       _selectionTree = new MenuTree(_nameTypeList);
-      _selectionTree.Selection.SelectionConfirmed += (Action<MenuTreeSelection>) (x =>
-      {
-        SelectionConfirmed?.Invoke(GetCurrentSelection());
-      });
+      _selectionTree.Selection.SelectionConfirmed += (Action) (() => { onSelectionConfirmed(GetCurrentSelection()); });
 
       SetSelection(selectedType);
 
       if (expandAllMenuItems)
         _selectionTree.EnumerateTree(folder => folder.Toggled = true);
     }
-
-    public event Action<Type> SelectionConfirmed;
 
     /// <summary>
     /// Opens up the selector instance in a popup at the specified rect position.
@@ -63,7 +58,7 @@
     {
       var itemTextValues = _nameTypeList.Select(item => item.Name);
       var style = _selectionTree.DefaultMenuStyle.DefaultLabelStyle;
-      return PopupHelper.CalculatePopupWidth(itemTextValues, style, '/', false); // TODO: Make CalculatePopupWidth accept less variables
+      return PopupHelper.CalculatePopupWidth(itemTextValues, style, false); // TODO: Make CalculatePopupWidth accept less variables
     }
 
     /// <summary>
@@ -98,7 +93,7 @@
       int prevFocusId = GUIUtility.hotControl;
       int prevKeyboardFocus = GUIUtility.keyboardControl;
       window.WindowPadding = default;
-      _selectionTree.Selection.SelectionConfirmed += (Action<MenuTreeSelection>) (x =>
+      _selectionTree.Selection.SelectionConfirmed += (Action) (() =>
       {
         bool ctrl = Event.current != null && Event.current.modifiers != EventModifiers.Control;
         UnityEditorEventUtility.DelayAction(() =>

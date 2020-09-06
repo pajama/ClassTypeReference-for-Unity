@@ -11,12 +11,10 @@
         private readonly Type _declaringType;
         private readonly TypeSelector _selector;
         private readonly Type _selectedType;
-        private readonly Grouping _grouping;
 
         public TypeDropDownDrawer(string typeName, TypeOptionsAttribute attribute, Type declaringType)
         {
             _attribute = attribute;
-            _grouping = _attribute?.Grouping ?? TypeOptionsAttribute.DefaultGrouping;
             _declaringType = declaringType;
             _selectedType = TypeCache.GetType(typeName);
         }
@@ -24,15 +22,11 @@
         public void Draw(Action<Type> onTypeSelected)
         {
             var dropdownItems = GetDropdownItems();
+            bool expandAllMenuItems = _attribute.ExpandAllMenuItems;
+            var selector = new TypeSelector(dropdownItems, _selectedType, expandAllMenuItems, onTypeSelected);
 
-            bool expandAllMenuItems = _attribute != null && _attribute.ExpandAllMenuItems;
-
-            var selector = new TypeSelector(dropdownItems, _selectedType, expandAllMenuItems);
-
-            int dropdownHeight = _attribute?.DropdownHeight ?? 0;
+            int dropdownHeight = _attribute.DropdownHeight;
             selector.ShowInPopup(dropdownHeight);
-
-            selector.SelectionConfirmed += onTypeSelected;
         }
 
         private SortedSet<TypeItem> GetDropdownItems()
@@ -47,7 +41,7 @@
 
         private List<TypeItem> GetIncludedTypes()
         {
-            var typesToInclude = _attribute?.IncludeTypes;
+            var typesToInclude = _attribute.IncludeTypes;
 
             if (typesToInclude == null)
                 return new List<TypeItem>();
@@ -57,7 +51,7 @@
             foreach (Type typeToInclude in _attribute.IncludeTypes)
             {
                 if (typeToInclude != null && typeToInclude.FullName != null)
-                    typeItems.Add(new TypeItem(typeToInclude, _grouping));
+                    typeItems.Add(new TypeItem(typeToInclude, _attribute.Grouping));
             }
 
             return typeItems;
@@ -67,7 +61,7 @@
         {
             var typeRelatedAssemblies = TypeCollector.GetAssembliesTypeHasAccessTo(_declaringType);
 
-            if (_attribute?.IncludeAdditionalAssemblies != null)
+            if (_attribute.IncludeAdditionalAssemblies != null)
                 IncludeAdditionalAssemblies(typeRelatedAssemblies);
 
             var filteredTypes = TypeCollector.GetFilteredTypesFromAssemblies(
@@ -80,7 +74,7 @@
             {
                 var type = filteredTypes[i];
                 if (type.FullName != null)
-                    sortedTypes.Add(new TypeItem(type, _grouping));
+                    sortedTypes.Add(new TypeItem(type, _attribute.Grouping));
             }
 
             return sortedTypes;

@@ -33,7 +33,7 @@ namespace TypeReferences.Editor
 
         private void DrawTypeReferenceField(Rect position, SerializedProperty property)
         {
-            var constraints = attribute as TypeOptionsAttribute;
+            var constraints = (attribute as TypeOptionsAttribute) ?? new TypeOptionsAttribute();
             var serializedTypeRef = new SerializedTypeReference(property);
 
             var dropDown = new TypeDropDownDrawer(

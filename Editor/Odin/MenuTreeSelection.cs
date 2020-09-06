@@ -16,7 +16,7 @@
 
     public event Action<SelectionChangedType> SelectionChanged;
 
-    public event Action<MenuTreeSelection> SelectionConfirmed;
+    public event Action SelectionConfirmed;
 
     public int Count => _selection.Count;
 
@@ -107,7 +107,7 @@
     /// <summary>Triggers OnSelectionConfirmed.</summary>
     public void ConfirmSelection()
     {
-      SelectionConfirmed?.Invoke(this);
+      SelectionConfirmed?.Invoke();
     }
 
     IEnumerator IEnumerable.GetEnumerator()
