@@ -12,8 +12,6 @@
 
   public class MenuItem
   {
-    public Action<MenuItem> OnDrawItem;
-
     private static readonly Color MouseOverColor = EditorGUIUtility.isProSkin ? new Color(1f, 1f, 1f, 0.028f) : new Color(1f, 1f, 1f, 0.3f);
     private static bool _previousMenuItemWasSelected;
     private static MenuItem _handleClickEventOnMouseUp;
@@ -352,7 +350,7 @@
       _wasMouseDownEvent = currentEventType == EventType.MouseDown && _rectValue.Contains(currentEvent.mousePosition);
       if (_wasMouseDownEvent)
         _handleClickEventOnMouseUp = this;
-      OnDrawItem?.Invoke(this);
+      SelectOnClick();
       HandleMouseEvents(_rectValue, _triangleRect);
     }
 
@@ -401,6 +399,18 @@
     public bool _IsVisible()
     {
       return MenuTree.DrawInSearchMode ? MenuTree.FlatMenuTree.Contains(this) : ParentMenuItemsBottomUp(false).All(x => x.Toggled);
+    }
+
+    private void SelectOnClick()
+    {
+      EventType type = Event.current.type;
+      if (type == EventType.Layout || !Rect.Contains(Event.current.mousePosition))
+        return;
+      GUIHelper.RequestRepaint();
+      if (type != EventType.MouseUp || ChildMenuItems.Count != 0)
+        return;
+      MenuTree.Selection.ConfirmSelection();
+      Event.current.Use();
     }
 
     private string GetFullPath()

@@ -4,6 +4,7 @@
   using System.Collections;
   using System.Collections.Generic;
   using System.Linq;
+  using Sirenix.OdinInspector;
   using Sirenix.OdinInspector.Editor;
   using Sirenix.Utilities;
   using Sirenix.Utilities.Editor;
@@ -75,8 +76,7 @@
         MenuTreeDrawingConfig treeDrawingConfig = _defaultConfig ?? new MenuTreeDrawingConfig
         {
           DrawScrollView = true,
-          DrawSearchToolbar = false,
-          AutoHandleKeyboardNavigation = false
+          DrawSearchToolbar = false
         };
 
         _defaultConfig = treeDrawingConfig;
@@ -181,6 +181,7 @@
           GUIHelper.RequestRepaint();
           _requestRepaint = false;
         }
+
         if (config.DrawSearchToolbar)
           DrawSearchToolbar();
         Rect outerRect = EditorGUILayout.BeginVertical();
@@ -212,15 +213,19 @@
               else
                 GUIHelper.RequestRepaint();
             }
+
             _innerScrollViewRect = rect;
           }
+
           GUILayout.Space(-1f);
         }
+
         if (_isDirty && Event.current.type == EventType.Layout)
         {
           UpdateMenuTree();
           _isDirty = false;
         }
+
         VisibleRect = GUIClipInfo.VisibleRect.Expand(300f);
         CurrentEvent = Event.current;
         CurrentEventType = CurrentEvent.type;
@@ -246,14 +251,14 @@
           for (int index = 0; index < count; ++index)
             odinMenuItemList[index].DrawMenuItems(0);
         }
+
         if (config.DrawScrollView)
         {
           EditorGUILayout.EndVertical();
           EditorGUILayout.EndScrollView();
         }
+
         EditorGUILayout.EndVertical();
-        if (config.AutoHandleKeyboardNavigation)
-          HandleKeyboardMenuNavigation();
         if (_scrollToWhenReady != null)
           ScrollToMenuItem(_scrollToWhenReady, _scrollToCenter);
         if (Event.current.type != EventType.Repaint)
@@ -403,151 +408,114 @@
       return searchTerm;
     }
 
-    private void HandleKeyboardMenuNavigation()
+    public void AddObjectAtPath(string menuPath, object instance)
     {
-      if (Event.current.type != EventType.KeyDown || ActiveMenuTree != this)
-        return;
+      SplitMenuPath(menuPath, out menuPath, out string name);
+      AddMenuItemAtPath(menuPath, new MenuItem(this, name, instance));
+    }
 
-      GUIHelper.RequestRepaint();
-      KeyCode keyCode = Event.current.keyCode;
-      if (Selection.Count == 0 || !Selection.Any(x => x._IsVisible()))
+    private static void SplitMenuPath(string menuPath, out string path, out string name)
+    {
+      menuPath = menuPath.Trim('/');
+      int length = menuPath.LastIndexOf('/');
+      if (length == -1)
       {
-        var source = DrawInSearchMode ? FlatMenuTree : EnumerateTree().Where(x => x._IsVisible());
-        MenuItem menuItem = null;
-        switch (keyCode)
-        {
-          case KeyCode.UpArrow:
-            menuItem = source.LastOrDefault();
-            break;
-          case KeyCode.DownArrow:
-            menuItem = source.FirstOrDefault();
-            break;
-          case KeyCode.RightAlt:
-            menuItem = source.FirstOrDefault();
-            break;
-          case KeyCode.LeftAlt:
-            menuItem = source.FirstOrDefault();
-            break;
-        }
-
-        if (menuItem == null)
-          return;
-
-        menuItem.Select();
-        Event.current.Use();
+        path = string.Empty;
+        name = menuPath;
       }
       else
       {
-        if (keyCode == KeyCode.LeftArrow && !DrawInSearchMode)
-        {
-          bool flag = true;
-          foreach (MenuItem odinMenuItem1 in Selection.ToList())
-          {
-            if (odinMenuItem1.Toggled && odinMenuItem1.ChildMenuItems.Any())
-            {
-              flag = false;
-              odinMenuItem1.Toggled = false;
-            }
+        path = menuPath.Substring(0, length);
+        name = menuPath.Substring(length + 1);
+      }
+    }
 
-            if ((Event.current.modifiers & EventModifiers.Alt) == EventModifiers.None)
+    private void AddMenuItemAtPath(
+      string path,
+      MenuItem menuItem)
+    {
+      MenuItem menuItem1 = Root;
+      if (!string.IsNullOrEmpty(path))
+      {
+        if (path[0] == '/' || path[path.Length - 1] == '/')
+          path = path.Trim();
+        int startIndex = 0;
+        int num;
+        do
+        {
+          num = path.IndexOf('/', startIndex);
+          string name;
+          if (num < 0)
+          {
+            num = path.Length - 1;
+            name = path.Substring(startIndex, num - startIndex + 1);
+          }
+          else
+          {
+            name = path.Substring(startIndex, num - startIndex);
+          }
+
+          List<MenuItem> childMenuItems = menuItem1.ChildMenuItems;
+          MenuItem menuItem2 = null;
+          for (int index = childMenuItems.Count - 1; index >= 0; --index)
+          {
+            if (childMenuItems[index].Name != name)
               continue;
 
-            flag = false;
-            foreach (MenuItem odinMenuItem2 in odinMenuItem1.GetChildMenuItemsRecursive(false))
-              odinMenuItem2.Toggled = odinMenuItem1.Toggled;
+            menuItem2 = childMenuItems[index];
+            break;
           }
 
-          if (flag)
-            keyCode = KeyCode.UpArrow;
-          Event.current.Use();
+          if (menuItem2 == null)
+          {
+            menuItem2 = new MenuItem(this, name, null);
+            menuItem1.ChildMenuItems.Add(menuItem2);
+          }
+
+          menuItem1 = menuItem2;
+          startIndex = num + 1;
         }
+        while (num != path.Length - 1);
+      }
 
-        if (keyCode == KeyCode.RightArrow && !DrawInSearchMode)
+      List<MenuItem> childMenuItems1 = menuItem1.ChildMenuItems;
+      MenuItem menuItem3 = null;
+      for (int index = childMenuItems1.Count - 1; index >= 0; --index)
+      {
+        if (childMenuItems1[index].Name != menuItem.Name)
+          continue;
+
+        menuItem3 = childMenuItems1[index];
+        break;
+      }
+
+      if (menuItem3 != null)
+      {
+        menuItem1.ChildMenuItems.Remove(menuItem3);
+        menuItem.ChildMenuItems.AddRange(menuItem3.ChildMenuItems);
+      }
+
+      menuItem1.ChildMenuItems.Add(menuItem);
+    }
+
+    [ShowOdinSerializedPropertiesInInspector]
+    private class SerializedValueWrapper
+    {
+      private readonly object _instance;
+
+      public SerializedValueWrapper(object obj)
+      {
+        _instance = obj;
+      }
+
+      [HideLabel]
+      [ShowInInspector]
+      [HideReferenceObjectPicker]
+      public object Instance
+      {
+        get => _instance;
+        set
         {
-          bool flag = true;
-          foreach (MenuItem odinMenuItem1 in Selection.ToList())
-          {
-            if (!odinMenuItem1.Toggled && odinMenuItem1.ChildMenuItems.Any())
-            {
-              odinMenuItem1.Toggled = true;
-              flag = false;
-            }
-
-            if ((Event.current.modifiers & EventModifiers.Alt) == EventModifiers.None)
-              continue;
-
-            flag = false;
-            foreach (MenuItem odinMenuItem2 in odinMenuItem1.GetChildMenuItemsRecursive(false))
-              odinMenuItem2.Toggled = odinMenuItem1.Toggled;
-          }
-
-          if (flag)
-            keyCode = KeyCode.DownArrow;
-          Event.current.Use();
-        }
-
-        switch (keyCode)
-        {
-          case KeyCode.UpArrow when (Event.current.modifiers & EventModifiers.Shift) != EventModifiers.None:
-          {
-            MenuItem menuItem = Selection.Last();
-            MenuItem prevVisualMenuItem = menuItem.PrevVisualMenuItem;
-            if (prevVisualMenuItem != null)
-            {
-              if (prevVisualMenuItem.IsSelected)
-                menuItem.Deselect();
-              else
-                prevVisualMenuItem.Select(true);
-              Event.current.Use();
-            }
-
-            break;
-          }
-
-          case KeyCode.UpArrow:
-          {
-            MenuItem prevVisualMenuItem = Selection.Last().PrevVisualMenuItem;
-            if (prevVisualMenuItem != null)
-            {
-              prevVisualMenuItem.Select();
-              Event.current.Use();
-            }
-
-            break;
-          }
-
-          case KeyCode.DownArrow when (Event.current.modifiers & EventModifiers.Shift) != EventModifiers.None:
-          {
-            MenuItem menuItem = Selection.Last();
-            MenuItem nextVisualMenuItem = menuItem.NextVisualMenuItem;
-            if (nextVisualMenuItem != null)
-            {
-              if (nextVisualMenuItem.IsSelected)
-                menuItem.Deselect();
-              else
-                nextVisualMenuItem.Select(true);
-              Event.current.Use();
-            }
-
-            break;
-          }
-
-          case KeyCode.DownArrow:
-          {
-            MenuItem nextVisualMenuItem = Selection.Last().NextVisualMenuItem;
-            if (nextVisualMenuItem != null)
-            {
-              nextVisualMenuItem.Select();
-              Event.current.Use();
-            }
-
-            break;
-          }
-
-          case KeyCode.Return:
-            Selection.ConfirmSelection();
-            Event.current.Use();
-            return;
         }
       }
     }

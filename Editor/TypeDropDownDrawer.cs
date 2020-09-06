@@ -2,7 +2,6 @@
 {
     using System;
     using System.Collections.Generic;
-    using System.Linq;
     using System.Reflection;
     using Odin;
 
@@ -33,8 +32,7 @@
             int dropdownHeight = _attribute?.DropdownHeight ?? 0;
             selector.ShowInPopup(dropdownHeight);
 
-            selector.SelectionConfirmed +=
-                (Action<IEnumerable<Type>>) (selectedValues => onTypeSelected(selectedValues.FirstOrDefault()));
+            selector.SelectionConfirmed += onTypeSelected;
         }
 
         private SortedSet<TypeItem> GetDropdownItems()

@@ -10,7 +10,6 @@
     [HideInInspector] public bool ConfirmSelectionOnDoubleClick = true;
     public bool AutoScrollOnSelectionChanged = true;
     public bool DrawScrollView = true;
-    public bool AutoHandleKeyboardNavigation = true;
     public bool DrawSearchToolbar = true;
     public bool UseCachedExpandedStates = true;
     public bool AutoFocusSearchBar = true;

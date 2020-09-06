@@ -36,40 +36,13 @@
         SelectionConfirmed?.Invoke(GetCurrentSelection());
       });
 
-      EnableSingleClickToSelect();
       SetSelection(selectedType);
 
       if (expandAllMenuItems)
         _selectionTree.EnumerateTree(folder => folder.Toggled = true);
     }
 
-    /// <summary>
-    /// Occurs when the menuTrees selection is confirmed.
-    /// </summary>
-    public event Action<IEnumerable<Type>> SelectionConfirmed;
-
-    private void SetSelection(Type selected)
-    {
-      if (selected == null)
-          return;
-
-      foreach (var item in _selectionTree.EnumerateTree())
-      {
-        if ((Type) item.Value == selected)
-          item.Select(true);
-      }
-    }
-
-    /// <summary>Enables the single click to select.</summary>
-    private void EnableSingleClickToSelect()
-    {
-      _selectionTree.EnumerateTree(x =>
-      {
-        x.OnDrawItem -= EnableSingleClickToSelect;
-        x.OnDrawItem -= EnableSingleClickToSelect;
-        x.OnDrawItem += EnableSingleClickToSelect;
-      });
-    }
+    public event Action<Type> SelectionConfirmed;
 
     /// <summary>
     /// Opens up the selector instance in a popup at the specified rect position.
@@ -85,16 +58,16 @@
       SetupWindow(window, focusedWindow);
     }
 
-    private static void EnableSingleClickToSelect(MenuItem obj)
+    private void SetSelection(Type selected)
     {
-      EventType type = Event.current.type;
-      if (type == EventType.Layout || !obj.Rect.Contains(Event.current.mousePosition))
+      if (selected == null)
         return;
-      GUIHelper.RequestRepaint();
-      if (type != EventType.MouseUp || obj.ChildMenuItems.Count != 0)
-        return;
-      obj.MenuTree.Selection.ConfirmSelection();
-      Event.current.Use();
+
+      foreach (var item in _selectionTree.EnumerateTree())
+      {
+        if ((Type) item.Value == selected)
+          item.Select(true);
+      }
     }
 
     private int CalculateOptimalWidth()
@@ -172,9 +145,9 @@
       });
     }
 
-    private IEnumerable<Type> GetCurrentSelection()
+    private Type GetCurrentSelection()
     {
-      return _selectionTree.Selection.Select(x => x.Value).OfType<Type>();
+      return _selectionTree.Selection.Select(x => x.Value).OfType<Type>().FirstOrDefault();
     }
 
     /// <summary>Builds the selection tree.</summary>
