@@ -22,9 +22,7 @@
         public void Draw(Action<Type> onTypeSelected)
         {
             var dropdownItems = GetDropdownItems();
-            bool expandAllMenuItems = _attribute.ExpandAllMenuItems;
-            var selector = new TypeSelector(dropdownItems, _selectedType, expandAllMenuItems, onTypeSelected);
-
+            var selector = new TypeSelector(dropdownItems, _selectedType, _attribute.ExpandAllMenuItems, onTypeSelected);
             int dropdownHeight = _attribute.DropdownHeight;
             selector.ShowInPopup(dropdownHeight);
         }

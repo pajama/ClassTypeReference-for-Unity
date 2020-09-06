@@ -126,8 +126,6 @@
       }
     }
 
-    private OdinMenuStyle Style => _style ?? (_style = MenuTree.DefaultMenuStyle);
-
     public void Select(bool addToSelection = false)
     {
       if (!addToSelection)
@@ -159,9 +157,9 @@
       }
     }
 
-    public void DrawMenuItems(int indentLevel)
+    public void DrawMenuItems(int indentLevel, Rect visibleRect, float currentEditorTimeHelperDeltaTime)
     {
-      DrawMenuItem(indentLevel);
+      DrawMenuItem(indentLevel, visibleRect);
       List<MenuItem> childMenuItems = ChildMenuItems;
       int count = childMenuItems.Count;
       if (count == 0)
@@ -170,19 +168,19 @@
       if (_t < 0.0)
         _t = toggled ? 1f : 0.0f;
       if (MenuTree.CurrentEventType == EventType.Layout)
-        _t = Mathf.MoveTowards(_t, toggled ? 1f : 0.0f, MenuTree.CurrentEditorTimeHelperDeltaTime * (1f / SirenixEditorGUI.DefaultFadeGroupDuration));
+        _t = Mathf.MoveTowards(_t, toggled ? 1f : 0.0f, currentEditorTimeHelperDeltaTime * (1f / SirenixEditorGUI.DefaultFadeGroupDuration));
       if (SirenixEditorGUI.BeginFadeGroup(_t))
       {
         for (int index = 0; index < count; ++index)
-          childMenuItems[index].DrawMenuItems(indentLevel + 1);
+          childMenuItems[index].DrawMenuItems(indentLevel + 1, visibleRect, currentEditorTimeHelperDeltaTime);
       }
 
       SirenixEditorGUI.EndFadeGroup();
     }
 
-    public void DrawMenuItem(int indentLevel)
+    public void DrawMenuItem(int indentLevel, Rect visibleRect)
     {
-      Rect rect1 = GUILayoutUtility.GetRect(0.0f, Style.Height);
+      Rect rect1 = GUILayoutUtility.GetRect(0.0f, OdinMenuStyle.TreeViewStyle.Height);
       Event currentEvent = MenuTree.CurrentEvent;
       EventType currentEventType = MenuTree.CurrentEventType;
       if (currentEventType == EventType.Layout)
@@ -192,8 +190,8 @@
       float y1 = _rectValue.y;
       if (y1 > 1000.0)
       {
-        float y2 = MenuTree.VisibleRect.y;
-        if (y1 + (double) _rectValue.height < y2 || y1 > y2 + (double) MenuTree.VisibleRect.height)
+        float y2 = visibleRect.y;
+        if (y1 + (double) _rectValue.height < y2 || y1 > y2 + (double) visibleRect.height)
         {
           return;
         }
@@ -201,7 +199,7 @@
 
       if (currentEventType == EventType.Repaint)
       {
-        _labelRect = _rectValue.AddXMin(Style.Offset + indentLevel * Style.IndentAmount);
+        _labelRect = _rectValue.AddXMin(OdinMenuStyle.TreeViewStyle.Offset + indentLevel * OdinMenuStyle.TreeViewStyle.IndentAmount);
         bool isSelected = IsSelected;
         if (isSelected)
         {
@@ -209,32 +207,32 @@
           {
             EditorGUI.DrawRect(
                 _rectValue,
-                EditorGUIUtility.isProSkin ? Style.SelectedColorDarkSkin : Style.SelectedColorLightSkin);
+                EditorGUIUtility.isProSkin ? OdinMenuStyle.TreeViewStyle.SelectedColorDarkSkin : OdinMenuStyle.TreeViewStyle.SelectedColorLightSkin);
           }
           else if (EditorGUIUtility.isProSkin)
           {
-            EditorGUI.DrawRect(_rectValue, Style.SelectedInactiveColorDarkSkin);
+            EditorGUI.DrawRect(_rectValue, OdinMenuStyle.TreeViewStyle.SelectedInactiveColorDarkSkin);
           }
           else
           {
-            EditorGUI.DrawRect(_rectValue, Style.SelectedInactiveColorLightSkin);
+            EditorGUI.DrawRect(_rectValue, OdinMenuStyle.TreeViewStyle.SelectedInactiveColorLightSkin);
           }
         }
 
         if (!isSelected && _rectValue.Contains(currentEvent.mousePosition))
           EditorGUI.DrawRect(_rectValue, MouseOverColor);
-        if (ChildMenuItems.Count > 0 && !MenuTree.DrawInSearchMode && Style.DrawFoldoutTriangle)
+        if (ChildMenuItems.Count > 0 && !MenuTree.DrawInSearchMode && OdinMenuStyle.TreeViewStyle.DrawFoldoutTriangle)
         {
           EditorIcon editorIcon = Toggled ? EditorIcons.TriangleDown : EditorIcons.TriangleRight;
-          if (Style.AlignTriangleLeft)
+          if (OdinMenuStyle.TreeViewStyle.AlignTriangleLeft)
           {
-            _triangleRect = _labelRect.AlignLeft(Style.TriangleSize).AlignMiddle(Style.TriangleSize);
-            _triangleRect.x -= Style.TriangleSize - Style.TrianglePadding;
+            _triangleRect = _labelRect.AlignLeft(OdinMenuStyle.TreeViewStyle.TriangleSize).AlignMiddle(OdinMenuStyle.TreeViewStyle.TriangleSize);
+            _triangleRect.x -= OdinMenuStyle.TreeViewStyle.TriangleSize - OdinMenuStyle.TreeViewStyle.TrianglePadding;
           }
           else
           {
-            _triangleRect = _rectValue.AlignRight(Style.TriangleSize).AlignMiddle(Style.TriangleSize);
-            _triangleRect.x -= Style.TrianglePadding;
+            _triangleRect = _rectValue.AlignRight(OdinMenuStyle.TreeViewStyle.TriangleSize).AlignMiddle(OdinMenuStyle.TreeViewStyle.TriangleSize);
+            _triangleRect.x -= OdinMenuStyle.TreeViewStyle.TrianglePadding;
           }
 
           if (currentEventType == EventType.Repaint)
@@ -263,12 +261,12 @@
           }
         }
 
-        GUIStyle style = isSelected ? Style.SelectedLabelStyle : Style.DefaultLabelStyle;
-        _labelRect = _labelRect.AlignMiddle(16f).AddY(Style.LabelVerticalOffset);
+        GUIStyle style = isSelected ? OdinMenuStyle.TreeViewStyle.SelectedLabelStyle : OdinMenuStyle.TreeViewStyle.DefaultLabelStyle;
+        _labelRect = _labelRect.AlignMiddle(16f).AddY(OdinMenuStyle.TreeViewStyle.LabelVerticalOffset);
         GUI.Label(_labelRect, SmartName, style);
-        if (Style.Borders)
+        if (OdinMenuStyle.TreeViewStyle.Borders)
         {
-          float num = Style.BorderPadding;
+          float num = OdinMenuStyle.TreeViewStyle.BorderPadding;
           bool flag = true;
           if (isSelected || _previousMenuItemWasSelected)
           {
@@ -283,7 +281,7 @@
             Rect rect2 = _rectValue;
             rect2.x += num;
             rect2.width -= num * 2f;
-            SirenixEditorGUI.DrawHorizontalLineSeperator(rect2.x, rect2.y, rect2.width, Style.BorderAlpha);
+            SirenixEditorGUI.DrawHorizontalLineSeperator(rect2.x, rect2.y, rect2.width, OdinMenuStyle.TreeViewStyle.BorderAlpha);
           }
         }
       }

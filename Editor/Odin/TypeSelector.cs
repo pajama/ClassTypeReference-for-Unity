@@ -57,8 +57,8 @@
     private int CalculateOptimalWidth()
     {
       var itemTextValues = _nameTypeList.Select(item => item.Name);
-      var style = _selectionTree.DefaultMenuStyle.DefaultLabelStyle;
-      return PopupHelper.CalculatePopupWidth(itemTextValues, style, false); // TODO: Make CalculatePopupWidth accept less variables
+      var style = OdinMenuStyle.TreeViewStyle.DefaultLabelStyle;
+      return PopupHelper.CalculatePopupWidth(itemTextValues, style, false);
     }
 
     /// <summary>
@@ -76,7 +76,7 @@
       EditorGUI.DrawRect(GUILayoutUtility.GetLastRect().AlignLeft(1f), SirenixGUIStyles.BorderColor);
       SirenixEditorGUI.EndHorizontalToolbar();
 
-      if (_selectionTree.MenuItems.Count == 0)
+      if (_nameTypeList.Count == 0)
       {
         GUILayout.BeginVertical(SirenixGUIStyles.ContentPadding);
         SirenixEditorGUI.InfoMessageBox("There are no possible values to select.");

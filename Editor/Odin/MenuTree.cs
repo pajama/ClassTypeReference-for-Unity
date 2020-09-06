@@ -17,24 +17,20 @@
     public const int SearchToolbarHeight = 22;
 
     public static MenuTree ActiveMenuTree;
-    public static Rect VisibleRect;
-    public static float CurrentEditorTimeHelperDeltaTime;
     public static Event CurrentEvent;
     public static EventType CurrentEventType;
 
+    // needed to show search results
     public readonly List<MenuItem> FlatMenuTree = new List<MenuItem>();
 
-    public Vector2 ScrollPos;
-    public string SearchTerm = string.Empty;
-
     private static bool _preventAutoFocus;
-    private static EditorTimeHelper _currentEditorTimeHelper;
 
     private readonly GUIFrameCounter _frameCounter = new GUIFrameCounter();
-    private readonly EditorTimeHelper _timeHelper = new EditorTimeHelper();
     private readonly MenuItem _root;
     private readonly string _searchFieldControlName;
 
+    [SerializeField] private Vector2 _scrollPos;
+    [SerializeField] private string SearchTerm = string.Empty;
     private bool _isFirstFrame = true;
     private bool _hasRepaintedCurrentSearchResult = true;
     private bool _regainSearchFieldFocus;
@@ -46,11 +42,8 @@
     private bool _requestRepaint;
     private bool _scrollToCenter;
     private MenuItem _scrollToWhenReady;
-    private bool _isDirty;
-    private bool _updateSearchResults;
     private bool _regainFocusWhenWindowFocus;
     private bool _currWindowHasFocus;
-    private OdinMenuStyle _defaultMenuStyle;
 
     public MenuTree(SortedSet<TypeItem> items)
     {
@@ -62,19 +55,12 @@
       BuildSelectionTree(items);
     }
 
-    public MenuItem Root => _root;
-
     public MenuTreeSelection Selection { get; }
 
-    public List<MenuItem> MenuItems => _root.ChildMenuItems;
 
     public bool DrawInSearchMode { get; private set; }
 
-    public OdinMenuStyle DefaultMenuStyle
-    {
-      get => _defaultMenuStyle ?? (_defaultMenuStyle = new OdinMenuStyle { Height = 22 });
-      set => _defaultMenuStyle = value;
-    }
+    private List<MenuItem> MenuItems => _root.ChildMenuItems;
 
     public IEnumerable<MenuItem> EnumerateTree(bool includeRootNode = false)
     {
@@ -101,14 +87,13 @@
       ++rect2.y;
       EditorGUI.BeginChangeCheck();
       SearchTerm = DrawSearchField(rect2, SearchTerm);
-      if ((EditorGUI.EndChangeCheck() || _updateSearchResults) && _hasRepaintedCurrentSearchResult)
+      if ((EditorGUI.EndChangeCheck()) && _hasRepaintedCurrentSearchResult)
       {
-        _updateSearchResults = false;
         _hasRepaintedCurrentSearchResult = false;
         if (!string.IsNullOrEmpty(SearchTerm))
         {
           if (!DrawInSearchMode)
-            ScrollPos = default;
+            _scrollPos = default;
           DrawInSearchMode = true;
           FlatMenuTree.Clear();
           FlatMenuTree.AddRange(EnumerateTree().Where(x => x.Value != null).Select(x =>
@@ -134,19 +119,18 @@
         }
       }
 
-      if (Event.current.type != EventType.Repaint)
-        return;
-      _hasRepaintedCurrentSearchResult = true;
+      if (Event.current.type == EventType.Repaint)
+        _hasRepaintedCurrentSearchResult = true;
     }
 
     public void DrawMenuTree(bool drawSearchBar)
     {
       EditorTimeHelper time = EditorTimeHelper.Time;
-      EditorTimeHelper.Time = _timeHelper;
+      EditorTimeHelper.Time = new EditorTimeHelper();
       EditorTimeHelper.Time.Update();
       try
       {
-        _timeHelper.Update();
+        EditorTimeHelper.Time.Update();
         _frameCounter.Update();
         if (_requestRepaint)
         {
@@ -160,7 +144,7 @@
         HandleActiveMenuTreeState(outerRect);
         if (Event.current.type == EventType.Repaint)
           _outerScrollViewRect = outerRect;
-        ScrollPos = _hideScrollbarsWhileContentIsExpanding <= 0 ? EditorGUILayout.BeginScrollView(ScrollPos, GUILayoutOptions.ExpandHeight(false)) : EditorGUILayout.BeginScrollView(ScrollPos, GUIStyle.none, GUIStyle.none, GUILayoutOptions.ExpandHeight(false));
+        _scrollPos = _hideScrollbarsWhileContentIsExpanding <= 0 ? EditorGUILayout.BeginScrollView(_scrollPos, GUILayoutOptions.ExpandHeight(false)) : EditorGUILayout.BeginScrollView(_scrollPos, GUIStyle.none, GUIStyle.none, GUILayoutOptions.ExpandHeight(false));
         Rect rect = EditorGUILayout.BeginVertical();
         if (_innerScrollViewRect.height == 0.0 || Event.current.type == EventType.Repaint)
         {
@@ -189,21 +173,14 @@
 
         GUILayout.Space(-1f);
 
-        if (_isDirty && Event.current.type == EventType.Layout)
-        {
-          UpdateMenuTree();
-          _isDirty = false;
-        }
-
-        VisibleRect = GUIClipInfo.VisibleRect.Expand(300f);
+        var visibleRect = GUIClipInfo.VisibleRect.Expand(300f);
         CurrentEvent = Event.current;
         CurrentEventType = CurrentEvent.type;
-        _currentEditorTimeHelper = EditorTimeHelper.Time;
-        CurrentEditorTimeHelperDeltaTime = _currentEditorTimeHelper.DeltaTime;
+        var currentEditorTimeHelperDeltaTime = EditorTimeHelper.Time.DeltaTime;
         List<MenuItem> odinMenuItemList = DrawInSearchMode ? FlatMenuTree : MenuItems;
         int count = odinMenuItemList.Count;
         for (int index = 0; index < count; ++index)
-          odinMenuItemList[index].DrawMenuItems(0);
+          odinMenuItemList[index].DrawMenuItems(0, visibleRect, currentEditorTimeHelperDeltaTime);
 
         EditorGUILayout.EndVertical();
         EditorGUILayout.EndScrollView();
@@ -228,7 +205,6 @@
 
     private void BuildSelectionTree(SortedSet<TypeItem> items)
     {
-      DefaultMenuStyle = OdinMenuStyle.TreeViewStyle;
       if (items == null)
         return;
 
@@ -277,22 +253,22 @@
         if (centerMenuItem)
         {
           Rect rect2 = _outerScrollViewRect.AlignCenterY(rect1.height);
-          num1 = rect1.yMin - (_innerScrollViewRect.y + ScrollPos.y - rect2.y);
-          num2 = (float) (rect1.yMax - (double) rect2.height + _innerScrollViewRect.y - (ScrollPos.y + (double) rect2.y));
+          num1 = rect1.yMin - (_innerScrollViewRect.y + _scrollPos.y - rect2.y);
+          num2 = (float) (rect1.yMax - (double) rect2.height + _innerScrollViewRect.y - (_scrollPos.y + (double) rect2.y));
         }
         else
         {
           _outerScrollViewRect.y = 0.0f;
-          float num3 = (float) (rect1.yMin - (_innerScrollViewRect.y + (double) ScrollPos.y) - 1.0);
-          float num4 = rect1.yMax - _outerScrollViewRect.height + _innerScrollViewRect.y - ScrollPos.y;
+          float num3 = (float) (rect1.yMin - (_innerScrollViewRect.y + (double) _scrollPos.y) - 1.0);
+          float num4 = rect1.yMax - _outerScrollViewRect.height + _innerScrollViewRect.y - _scrollPos.y;
           num1 = num3 - rect1.height;
           num2 = num4 + rect1.height;
         }
 
         if (num1 < 0.0)
-          ScrollPos.y += num1;
+          _scrollPos.y += num1;
         if (num2 > 0.0)
-          ScrollPos.y += num2;
+          _scrollPos.y += num2;
         if (_frameCounter.FrameCount > 6)
           _scrollToWhenReady = null;
         else
@@ -342,6 +318,7 @@
       {
         if (flag1)
           ActiveMenuTree = this;
+
         _hadSearchFieldFocus = flag1;
       }
 
@@ -396,7 +373,7 @@
       string path,
       MenuItem menuItem)
     {
-      MenuItem menuItem1 = Root;
+      MenuItem menuItem1 = _root;
       if (!string.IsNullOrEmpty(path))
       {
         if (path[0] == '/' || path[path.Length - 1] == '/')
