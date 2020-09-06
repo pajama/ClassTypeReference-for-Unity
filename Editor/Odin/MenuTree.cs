@@ -4,7 +4,6 @@
   using System.Collections;
   using System.Collections.Generic;
   using System.Linq;
-  using Sirenix.OdinInspector;
   using Sirenix.OdinInspector.Editor;
   using Sirenix.Utilities;
   using Sirenix.Utilities.Editor;
@@ -20,17 +19,19 @@
     public static Event CurrentEvent;
     public static EventType CurrentEventType;
 
-    // needed to show search results
-    public readonly List<MenuItem> FlatMenuTree = new List<MenuItem>();
+    public readonly List<MenuItem> FlatMenuTree = new List<MenuItem>(); // needed to show search results
+
+    public readonly MenuTreeSelection Selection = new MenuTreeSelection();
 
     private static bool _preventAutoFocus;
 
     private readonly GUIFrameCounter _frameCounter = new GUIFrameCounter();
+    private readonly EditorTimeHelper _timeHelper = new EditorTimeHelper(); // For some reason, it should be used to fold out selection tree
     private readonly MenuItem _root;
     private readonly string _searchFieldControlName;
 
     [SerializeField] private Vector2 _scrollPos;
-    [SerializeField] private string SearchTerm = string.Empty;
+    [SerializeField] private string _searchTerm = string.Empty;
     private bool _isFirstFrame = true;
     private bool _hasRepaintedCurrentSearchResult = true;
     private bool _regainSearchFieldFocus;
@@ -47,16 +48,12 @@
 
     public MenuTree(SortedSet<TypeItem> items)
     {
-      Selection = new MenuTreeSelection();
       _root = new MenuItem(this, nameof(_root), null);
       SetupAutoScroll();
       _searchFieldControlName = Guid.NewGuid().ToString();
       ActiveMenuTree = this;
       BuildSelectionTree(items);
     }
-
-    public MenuTreeSelection Selection { get; }
-
 
     public bool DrawInSearchMode { get; private set; }
 
@@ -86,11 +83,11 @@
       rect2.xMin += 3f;
       ++rect2.y;
       EditorGUI.BeginChangeCheck();
-      SearchTerm = DrawSearchField(rect2, SearchTerm);
-      if ((EditorGUI.EndChangeCheck()) && _hasRepaintedCurrentSearchResult)
+      _searchTerm = DrawSearchField(rect2, _searchTerm);
+      if (EditorGUI.EndChangeCheck() && _hasRepaintedCurrentSearchResult)
       {
         _hasRepaintedCurrentSearchResult = false;
-        if (!string.IsNullOrEmpty(SearchTerm))
+        if (!string.IsNullOrEmpty(_searchTerm))
         {
           if (!DrawInSearchMode)
             _scrollPos = default;
@@ -98,7 +95,7 @@
           FlatMenuTree.Clear();
           FlatMenuTree.AddRange(EnumerateTree().Where(x => x.Value != null).Select(x =>
           {
-            bool flag = FuzzySearch.Contains(SearchTerm, x.SearchString, out int score);
+            bool flag = FuzzySearch.Contains(_searchTerm, x.Name, out int score);
             return new
             {
               score,
@@ -119,18 +116,19 @@
         }
       }
 
-      if (Event.current.type == EventType.Repaint)
-        _hasRepaintedCurrentSearchResult = true;
+      if (Event.current.type != EventType.Repaint)
+        return;
+      _hasRepaintedCurrentSearchResult = true;
     }
 
     public void DrawMenuTree(bool drawSearchBar)
     {
       EditorTimeHelper time = EditorTimeHelper.Time;
-      EditorTimeHelper.Time = new EditorTimeHelper();
+      EditorTimeHelper.Time = _timeHelper;
       EditorTimeHelper.Time.Update();
       try
       {
-        EditorTimeHelper.Time.Update();
+        _timeHelper.Update();
         _frameCounter.Update();
         if (_requestRepaint)
         {
@@ -210,7 +208,7 @@
 
       foreach (TypeItem item in items)
       {
-        AddObjectAtPath(item.Name, item.Type);
+        AddTypeAtPath(item.Name, item.Type);
       }
     }
 
@@ -318,7 +316,6 @@
       {
         if (flag1)
           ActiveMenuTree = this;
-
         _hadSearchFieldFocus = flag1;
       }
 
@@ -347,10 +344,10 @@
       return searchTerm;
     }
 
-    public void AddObjectAtPath(string menuPath, object instance)
+    public void AddTypeAtPath(string menuPath, Type type)
     {
       SplitMenuPath(menuPath, out menuPath, out string name);
-      AddMenuItemAtPath(menuPath, new MenuItem(this, name, instance));
+      AddMenuItemAtPath(menuPath, new MenuItem(this, name, type));
     }
 
     private static void SplitMenuPath(string menuPath, out string path, out string name)
@@ -435,28 +432,6 @@
       }
 
       menuItem1.ChildMenuItems.Add(menuItem);
-    }
-
-    [ShowOdinSerializedPropertiesInInspector]
-    private class SerializedValueWrapper
-    {
-      private readonly object _instance;
-
-      public SerializedValueWrapper(object obj)
-      {
-        _instance = obj;
-      }
-
-      [HideLabel]
-      [ShowInInspector]
-      [HideReferenceObjectPicker]
-      public object Instance
-      {
-        get => _instance;
-        set
-        {
-        }
-      }
     }
   }
 }

@@ -58,7 +58,7 @@
     {
       var itemTextValues = _nameTypeList.Select(item => item.Name);
       var style = OdinMenuStyle.TreeViewStyle.DefaultLabelStyle;
-      return PopupHelper.CalculatePopupWidth(itemTextValues, style, false);
+      return PopupHelper.CalculatePopupWidth(itemTextValues, style, false); // TODO: Make CalculatePopupWidth accept less variables
     }
 
     /// <summary>
