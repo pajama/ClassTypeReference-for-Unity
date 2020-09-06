@@ -12,165 +12,191 @@
 
   public class MenuItem
   {
-    private static readonly Color mouseOverColor = EditorGUIUtility.isProSkin ? new Color(1f, 1f, 1f, 0.028f) : new Color(1f, 1f, 1f, 0.3f);
-    private static bool previousMenuItemWasSelected;
-    private bool isVisible = true;
-    private float t = -1f;
-    private static MenuItem handleClickEventOnMouseUp;
-    private List<MenuItem> childMenuItems;
-    private int flatTreeIndex;
-    private Func<Texture> iconGetter;
-    private bool isInitialized;
-    private LocalPersistentContext<bool> isToggledContext;
-    private MenuTree menuTree;
-    private string prevName;
-    private string name;
-    private MenuItem nextMenuItem;
-    private MenuItem nextMenuItemFlat;
-    private MenuItem parentMenuItem;
-    private MenuItem previousMenuItem;
-    private MenuItem previousMenuItemFlat;
-    private OdinMenuStyle style;
-    private Rect triangleRect;
-    private Rect labelRect;
-    private StringMemberHelper nameValueGetter;
-    private bool? nonCachedToggledState;
-    internal Rect rect;
-    internal bool EXPERIMENTAL_DontAllocateNewRect;
-    public bool MenuItemIsBeingRendered;
-    /// <summary>The default toggled state</summary>
-    public bool DefaultToggledState;
-    /// <summary>
-    /// Occurs right after the menu item is done drawing, and right before mouse input is handles so you can take control of that.
-    /// </summary>
     public Action<MenuItem> OnDrawItem;
-    /// <summary>Occurs when the user has right-clicked the menu item.</summary>
-    public Action<MenuItem> OnRightClick;
-    private bool wasMouseDownEvent;
-    private static int mouseDownClickCount;
 
-    /// <summary>
-    /// Initializes a new instance of the <see cref="T:Sirenix.OdinInspector.Editor.OdinMenuItem" /> class.
-    /// </summary>
-    /// <param name="tree">The Odin menu tree instance the menu item belongs to.</param>
-    /// <param name="name">The name of the menu item.</param>
-    /// <param name="value">The instance the value item represents.</param>
+    private static readonly Color MouseOverColor = EditorGUIUtility.isProSkin ? new Color(1f, 1f, 1f, 0.028f) : new Color(1f, 1f, 1f, 0.3f);
+    private static bool _previousMenuItemWasSelected;
+    private static MenuItem _handleClickEventOnMouseUp;
+    private static int _mouseDownClickCount;
+
+    private float _t = -1f;
+    private Func<Texture> _iconGetter;
+    private bool _isInitialized;
+    private LocalPersistentContext<bool> _isToggledContext;
+    private string _prevName;
+    private MenuItem _nextMenuItem;
+    private MenuItem _nextMenuItemFlat;
+    private MenuItem _parentMenuItem;
+    private MenuItem _previousMenuItem;
+    private MenuItem _previousMenuItemFlat;
+    private OdinMenuStyle _style;
+    private Rect _triangleRect;
+    private Rect _labelRect;
+    private StringMemberHelper _nameValueGetter;
+    private bool? _nonCachedToggledState;
+    private Rect _rectValue;
+    private bool _wasMouseDownEvent;
+
     public MenuItem(MenuTree tree, string name, object value)
     {
       if (tree == null)
         throw new ArgumentNullException(nameof(tree));
       if (name == null)
-        throw new ArgumentNullException(nameof (name));
-      menuTree = tree;
-      this.name = name;
+        throw new ArgumentNullException(nameof(name));
+      MenuTree = tree;
+      Name = name;
       SearchString = name;
       Value = value;
-      childMenuItems = new List<MenuItem>();
+      ChildMenuItems = new List<MenuItem>();
     }
 
-    /// <summary>Gets the child menu items.</summary>
-    /// <value>The child menu items.</value>
-    public List<MenuItem> ChildMenuItems => childMenuItems;
+    public List<MenuItem> ChildMenuItems { get; }
 
-    /// <summary>Gets the index location of the menu item.</summary>
-    private int FlatTreeIndex => flatTreeIndex;
+    public bool IsSelected => MenuTree.Selection.Contains(this);
 
-    /// <summary>
-    /// Gets or sets the icon that is used when the menu item is not selected.
-    /// </summary>
-    public Texture Icon { get; set; }
+    public MenuTree MenuTree { get; }
 
-    /// <summary>
-    /// Gets or sets the icon that is used when the menu item is selected.
-    /// </summary>
-    public Texture IconSelected { get; set; }
+    public string Name { get; }
 
-    /// <summary>
-    /// Gets a value indicating whether this instance is selected.
-    /// </summary>
-    public bool IsSelected => menuTree.Selection.Contains(this);
-
-    /// <summary>Gets the menu tree instance.</summary>
-    public MenuTree MenuTree => menuTree;
-
-    /// <summary>Gets or sets the raw menu item name.</summary>
-    public string Name => name;
-
-    /// <summary>
-    /// Gets or sets the search string used when searching for menu items.
-    /// </summary>
     public string SearchString { get; }
 
-    /// <summary>Gets the next visual menu item.</summary>
     public MenuItem NextVisualMenuItem
     {
       get
       {
         EnsureInitialized();
         if (MenuTree.DrawInSearchMode)
-          return nextMenuItemFlat;
-        return ChildMenuItems.Count > 0 && nextMenuItem != null && (!Toggled && _IsVisible()) ? nextMenuItem : GetAllNextMenuItems().FirstOrDefault(x => x._IsVisible());
+          return _nextMenuItemFlat;
+        return ChildMenuItems.Count > 0 && _nextMenuItem != null && (!Toggled && _IsVisible()) ? _nextMenuItem : GetAllNextMenuItems().FirstOrDefault(x => x._IsVisible());
       }
     }
 
-    /// <summary>Gets the parent menu item.</summary>
-    private MenuItem Parent
+    public Rect Rect
     {
-      get
-      {
-        EnsureInitialized();
-        return parentMenuItem;
-      }
+      get => _rectValue;
+      set => _rectValue = value;
     }
 
-    /// <summary>Gets the previous visual menu item.</summary>
     public MenuItem PrevVisualMenuItem
     {
       get
       {
         EnsureInitialized();
         if (MenuTree.DrawInSearchMode)
-          return previousMenuItemFlat;
-        if (ChildMenuItems.Count > 0 && !Toggled && _IsVisible())
+          return _previousMenuItemFlat;
+
+        if (ChildMenuItems.Count <= 0 || Toggled || !_IsVisible())
+          return GetAllPreviousMenuItems().FirstOrDefault(x => x._IsVisible());
+
+        if (_previousMenuItem != null)
         {
-          if (previousMenuItem != null)
-          {
-            if (previousMenuItem.ChildMenuItems.Count == 0 || !previousMenuItem.Toggled)
-              return previousMenuItem;
-          }
-          else if (parentMenuItem != null)
-          {
-            return parentMenuItem;
-          }
+          if (_previousMenuItem.ChildMenuItems.Count == 0 || !_previousMenuItem.Toggled)
+            return _previousMenuItem;
         }
+        else if (_parentMenuItem != null)
+        {
+          return _parentMenuItem;
+        }
+
         return GetAllPreviousMenuItems().FirstOrDefault(x => x._IsVisible());
       }
     }
 
-    /// <summary>Gets the drawn rect.</summary>
-    public Rect Rect => rect;
-
-    /// <summary>
-    /// Gets or sets the style. If null is specified, then the menu trees DefaultMenuStyle is used.
-    /// </summary>
-    private OdinMenuStyle Style => style ?? (style = menuTree.DefaultMenuStyle);
-
-    /// <summary>Deselects this instance.</summary>
-    public void Deselect()
+    public bool Toggled
     {
-      menuTree.Selection.Remove(this);
+      get
+      {
+        if (ChildMenuItems.Count == 0)
+          return false;
+        if (MenuTree.Config.UseCachedExpandedStates)
+        {
+          if (_isToggledContext == null)
+            _isToggledContext = LocalPersistentContext<bool>.Create(PersistentContext.Get("[OdinMenuItem]" + GetFullPath(), false));
+          return _isToggledContext.Value;
+        }
+
+        if (!_nonCachedToggledState.HasValue)
+          _nonCachedToggledState = false;
+        return _nonCachedToggledState.Value;
+      }
+      set
+      {
+        if (MenuTree.Config.UseCachedExpandedStates)
+        {
+          if (_isToggledContext == null)
+            _isToggledContext = LocalPersistentContext<bool>.Create(PersistentContext.Get("[OdinMenuItem]" + GetFullPath(), false));
+          _isToggledContext.Value = value;
+        }
+        else
+        {
+          _nonCachedToggledState = value;
+        }
+      }
     }
 
-    /// <summary>Selects the specified add to selection.</summary>
+    public object Value { get; }
+
+    private MenuItem Parent
+    {
+      get
+      {
+        EnsureInitialized();
+        return _parentMenuItem;
+      }
+    }
+
+    private string SmartName
+    {
+      get
+      {
+        object instance = Value;
+        if (Value is Func<object> func)
+          instance = func();
+        if (Name == null || Name == "$")
+        {
+          if (instance == null)
+            return string.Empty;
+          var @object = instance as Object;
+          return (bool) @object ? @object.name.SplitPascalCase() : instance.ToString();
+        }
+
+        bool flag = false;
+        if (_nameValueGetter == null)
+        {
+          flag = true;
+        }
+        else if (_prevName != Name)
+        {
+          flag = true;
+          _prevName = Name;
+        }
+        else if (_nameValueGetter != null && instance != null && _nameValueGetter.ObjectType != instance.GetType())
+        {
+          flag = true;
+        }
+
+        if (instance == null)
+          _nameValueGetter = null;
+        else if (flag)
+          _nameValueGetter = new StringMemberHelper(instance.GetType(), false, Name);
+        return _nameValueGetter != null ? _nameValueGetter.ForceGetString(instance) : Name;
+      }
+    }
+
+    private OdinMenuStyle Style => _style ?? (_style = MenuTree.DefaultMenuStyle);
+
+    public void Deselect()
+    {
+      MenuTree.Selection.Remove(this);
+    }
+
     public void Select(bool addToSelection = false)
     {
       if (!addToSelection)
-        menuTree.Selection.Clear();
-      menuTree.Selection.Add(this);
+        MenuTree.Selection.Clear();
+      MenuTree.Selection.Add(this);
     }
 
-    /// <summary>Gets the child menu items recursive in a DFS.</summary>
-    /// <param name="includeSelf">Whether to include it self in the collection.</param>
     public IEnumerable<MenuItem> GetChildMenuItemsRecursive(
       bool includeSelf)
     {
@@ -181,9 +207,6 @@
         yield return odinMenuItem2;
     }
 
-    /// <summary>Gets the child menu items recursive in a DFS.</summary>
-    /// <param name="includeSelf">Whether to include it self in the collection.</param>
-    /// <param name="includeRoot">Whether to include the root.</param>
     public IEnumerable<MenuItem> GetParentMenuItemsRecursive(
       bool includeSelf,
       bool includeRoot = false)
@@ -198,102 +221,6 @@
       }
     }
 
-    /// <summary>Gets the full menu item path.</summary>
-    private string GetFullPath()
-    {
-      EnsureInitialized();
-      MenuItem parent = Parent;
-      return parent == null ? SmartName : parent.GetFullPath() + "/" + SmartName;
-    }
-
-    /// <summary>Gets or sets the value the menu item represents.</summary>
-    public object Value { get; }
-
-    /// <summary>
-    /// Gets a nice menu item name. If the raw name value is null or a dollar sign, then the name is retrieved from the object itself.
-    /// </summary>
-    public string SmartName
-    {
-      get
-      {
-        object instance = Value;
-        if (Value is Func<object> func)
-          instance = func();
-        if (name == null || name == "$")
-        {
-          if (instance == null)
-            return string.Empty;
-          Object @object = instance as Object;
-          return (bool) @object ? @object.name.SplitPascalCase() : instance.ToString();
-        }
-        bool flag = false;
-        if (nameValueGetter == null)
-        {
-          flag = true;
-        }
-        else if (prevName != name)
-        {
-          flag = true;
-          prevName = name;
-        }
-        else if (nameValueGetter != null && instance != null && nameValueGetter.ObjectType != instance.GetType())
-        {
-          flag = true;
-        }
-        if (instance == null)
-          nameValueGetter = null;
-        else if (flag)
-          nameValueGetter = new StringMemberHelper(instance.GetType(), false, name);
-        return nameValueGetter != null ? nameValueGetter.ForceGetString(instance) : name;
-      }
-    }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether this <see cref="T:Sirenix.OdinInspector.Editor.OdinMenuItem" /> is toggled / expanded. This value tries it best to be persistent.
-    /// </summary>
-    public bool Toggled
-    {
-      get
-      {
-        if (childMenuItems.Count == 0)
-          return false;
-        if (menuTree.Config.UseCachedExpandedStates)
-        {
-          if (isToggledContext == null)
-            isToggledContext = LocalPersistentContext<bool>.Create(PersistentContext.Get("[OdinMenuItem]" + GetFullPath(), DefaultToggledState));
-          return isToggledContext.Value;
-        }
-
-        if (!nonCachedToggledState.HasValue)
-          nonCachedToggledState = DefaultToggledState;
-        return nonCachedToggledState.Value;
-      }
-      set
-      {
-        if (menuTree.Config.UseCachedExpandedStates)
-        {
-          if (isToggledContext == null)
-            isToggledContext = LocalPersistentContext<bool>.Create(PersistentContext.Get("[OdinMenuItem]" + GetFullPath(), DefaultToggledState));
-          isToggledContext.Value = value;
-        }
-        else
-        {
-          nonCachedToggledState = value;
-        }
-      }
-    }
-
-    /// <summary>Gets or sets the icon getter.</summary>
-    public Func<Texture> IconGetter
-    {
-      get { return iconGetter ?? (iconGetter = () => !IsSelected || !(bool) IconSelected ? Icon : IconSelected); }
-      set => iconGetter = value;
-    }
-
-    /// <summary>
-    /// Draws this menu item followed by all of its child menu items
-    /// </summary>
-    /// <param name="indentLevel">The indent level.</param>
     public void DrawMenuItems(int indentLevel)
     {
       DrawMenuItem(indentLevel);
@@ -302,133 +229,119 @@
       if (count == 0)
         return;
       bool toggled = Toggled;
-      if (t < 0.0)
-        t = toggled ? 1f : 0.0f;
+      if (_t < 0.0)
+        _t = toggled ? 1f : 0.0f;
       if (MenuTree.CurrentEventType == EventType.Layout)
-        t = Mathf.MoveTowards(t, toggled ? 1f : 0.0f, MenuTree.CurrentEditorTimeHelperDeltaTime * (1f / SirenixEditorGUI.DefaultFadeGroupDuration));
-      if (SirenixEditorGUI.BeginFadeGroup(t))
+        _t = Mathf.MoveTowards(_t, toggled ? 1f : 0.0f, MenuTree.CurrentEditorTimeHelperDeltaTime * (1f / SirenixEditorGUI.DefaultFadeGroupDuration));
+      if (SirenixEditorGUI.BeginFadeGroup(_t))
       {
         for (int index = 0; index < count; ++index)
           childMenuItems[index].DrawMenuItems(indentLevel + 1);
       }
+
       SirenixEditorGUI.EndFadeGroup();
     }
 
-    /// <summary>Draws the menu item with the specified indent level.</summary>
     public void DrawMenuItem(int indentLevel)
     {
-      Rect rect1 = EXPERIMENTAL_DontAllocateNewRect ? rect : GUILayoutUtility.GetRect(0.0f, Style.Height);
+      Rect rect1 = GUILayoutUtility.GetRect(0.0f, Style.Height);
       Event currentEvent = MenuTree.CurrentEvent;
       EventType currentEventType = MenuTree.CurrentEventType;
       if (currentEventType == EventType.Layout)
         return;
-      if (currentEventType == EventType.Repaint || (currentEventType != EventType.Layout && rect.width == 0.0))
-        rect = rect1;
-      float y1 = rect.y;
+      if (currentEventType == EventType.Repaint || (currentEventType != EventType.Layout && _rectValue.width == 0.0))
+        _rectValue = rect1;
+      float y1 = _rectValue.y;
       if (y1 > 1000.0)
       {
         float y2 = MenuTree.VisibleRect.y;
-        if (y1 + (double) rect.height < y2 || y1 > y2 + (double) MenuTree.VisibleRect.height)
+        if (y1 + (double) _rectValue.height < y2 || y1 > y2 + (double) MenuTree.VisibleRect.height)
         {
-          MenuItemIsBeingRendered = false;
           return;
         }
       }
-      MenuItemIsBeingRendered = true;
       if (currentEventType == EventType.Repaint)
       {
-        labelRect = rect.AddXMin(Style.Offset + indentLevel * Style.IndentAmount);
+        _labelRect = _rectValue.AddXMin(Style.Offset + indentLevel * Style.IndentAmount);
         bool isSelected = IsSelected;
         if (isSelected)
         {
-          if (MenuTree.ActiveMenuTree == menuTree)
+          if (MenuTree.ActiveMenuTree == MenuTree)
           {
             EditorGUI.DrawRect(
-                rect,
+                _rectValue,
                 EditorGUIUtility.isProSkin ? Style.SelectedColorDarkSkin : Style.SelectedColorLightSkin);
           }
           else if (EditorGUIUtility.isProSkin)
           {
-            EditorGUI.DrawRect(rect, Style.SelectedInactiveColorDarkSkin);
+            EditorGUI.DrawRect(_rectValue, Style.SelectedInactiveColorDarkSkin);
           }
           else
           {
-            EditorGUI.DrawRect(rect, Style.SelectedInactiveColorLightSkin);
+            EditorGUI.DrawRect(_rectValue, Style.SelectedInactiveColorLightSkin);
           }
         }
 
-        if (!isSelected && rect.Contains(currentEvent.mousePosition))
-          EditorGUI.DrawRect(rect, mouseOverColor);
+        if (!isSelected && _rectValue.Contains(currentEvent.mousePosition))
+          EditorGUI.DrawRect(_rectValue, MouseOverColor);
         if (ChildMenuItems.Count > 0 && !MenuTree.DrawInSearchMode && Style.DrawFoldoutTriangle)
         {
           EditorIcon editorIcon = Toggled ? EditorIcons.TriangleDown : EditorIcons.TriangleRight;
           if (Style.AlignTriangleLeft)
           {
-            triangleRect = labelRect.AlignLeft(Style.TriangleSize).AlignMiddle(Style.TriangleSize);
-            triangleRect.x -= Style.TriangleSize - Style.TrianglePadding;
+            _triangleRect = _labelRect.AlignLeft(Style.TriangleSize).AlignMiddle(Style.TriangleSize);
+            _triangleRect.x -= Style.TriangleSize - Style.TrianglePadding;
           }
           else
           {
-            triangleRect = rect.AlignRight(Style.TriangleSize).AlignMiddle(Style.TriangleSize);
-            triangleRect.x -= Style.TrianglePadding;
+            _triangleRect = _rectValue.AlignRight(Style.TriangleSize).AlignMiddle(Style.TriangleSize);
+            _triangleRect.x -= Style.TrianglePadding;
           }
 
           if (currentEventType == EventType.Repaint)
           {
             if (EditorGUIUtility.isProSkin)
             {
-              if (isSelected || triangleRect.Contains(currentEvent.mousePosition))
-                GUI.DrawTexture(triangleRect, editorIcon.Highlighted);
+              if (isSelected || _triangleRect.Contains(currentEvent.mousePosition))
+                GUI.DrawTexture(_triangleRect, editorIcon.Highlighted);
               else
-                GUI.DrawTexture(triangleRect, editorIcon.Active);
+                GUI.DrawTexture(_triangleRect, editorIcon.Active);
             }
             else if (isSelected)
             {
-              GUI.DrawTexture(triangleRect, editorIcon.Raw);
+              GUI.DrawTexture(_triangleRect, editorIcon.Raw);
             }
-            else if (triangleRect.Contains(currentEvent.mousePosition))
+            else if (_triangleRect.Contains(currentEvent.mousePosition))
             {
-              GUI.DrawTexture(triangleRect, editorIcon.Active);
+              GUI.DrawTexture(_triangleRect, editorIcon.Active);
             }
             else
             {
               GUIHelper.PushColor(new Color(1f, 1f, 1f, 0.7f));
-              GUI.DrawTexture(triangleRect, editorIcon.Active);
+              GUI.DrawTexture(_triangleRect, editorIcon.Active);
               GUIHelper.PopColor();
             }
           }
         }
 
-        Texture image = IconGetter();
-        if ((bool) image)
-        {
-          Rect position = labelRect.AlignLeft(Style.IconSize).AlignMiddle(Style.IconSize);
-          position.x += Style.IconOffset;
-          if (!isSelected)
-            GUIHelper.PushColor(new Color(1f, 1f, 1f, Style.NotSelectedIconAlpha));
-          GUI.DrawTexture(position, image, ScaleMode.ScaleToFit);
-          labelRect.xMin += Style.IconSize + Style.IconPadding;
-          if (!isSelected)
-            GUIHelper.PopColor();
-        }
         GUIStyle style = isSelected ? Style.SelectedLabelStyle : Style.DefaultLabelStyle;
-        labelRect = labelRect.AlignMiddle(16f).AddY(Style.LabelVerticalOffset);
-        GUI.Label(labelRect, SmartName, style);
+        _labelRect = _labelRect.AlignMiddle(16f).AddY(Style.LabelVerticalOffset);
+        GUI.Label(_labelRect, SmartName, style);
         if (Style.Borders)
         {
           float num = Style.BorderPadding;
           bool flag = true;
-          if (isSelected || previousMenuItemWasSelected)
+          if (isSelected || _previousMenuItemWasSelected)
           {
             num = 0.0f;
             if (!EditorGUIUtility.isProSkin)
               flag = false;
           }
 
-          previousMenuItemWasSelected = isSelected;
+          _previousMenuItemWasSelected = isSelected;
           if (flag)
           {
-            Rect rect2 = rect;
+            Rect rect2 = _rectValue;
             rect2.x += num;
             rect2.width -= num * 2f;
             SirenixEditorGUI.DrawHorizontalLineSeperator(rect2.x, rect2.y, rect2.width, Style.BorderAlpha);
@@ -436,30 +349,30 @@
         }
       }
 
-      wasMouseDownEvent = currentEventType == EventType.MouseDown && rect.Contains(currentEvent.mousePosition);
-      if (wasMouseDownEvent)
-        handleClickEventOnMouseUp = this;
+      _wasMouseDownEvent = currentEventType == EventType.MouseDown && _rectValue.Contains(currentEvent.mousePosition);
+      if (_wasMouseDownEvent)
+        _handleClickEventOnMouseUp = this;
       OnDrawItem?.Invoke(this);
-      HandleMouseEvents(rect, triangleRect);
+      HandleMouseEvents(_rectValue, _triangleRect);
     }
 
-    internal void UpdateMenuTreeRecursive(bool isRoot = false)
+    public void UpdateMenuTreeRecursive(bool isRoot = false)
     {
-      isInitialized = true;
+      _isInitialized = true;
       MenuItem menuItem = null;
       foreach (MenuItem childMenuItem in ChildMenuItems)
       {
-        childMenuItem.parentMenuItem = null;
-        childMenuItem.nextMenuItem = null;
-        childMenuItem.previousMenuItemFlat = null;
-        childMenuItem.nextMenuItemFlat = null;
-        childMenuItem.previousMenuItem = null;
+        childMenuItem._parentMenuItem = null;
+        childMenuItem._nextMenuItem = null;
+        childMenuItem._previousMenuItemFlat = null;
+        childMenuItem._nextMenuItemFlat = null;
+        childMenuItem._previousMenuItem = null;
         if (!isRoot)
-          childMenuItem.parentMenuItem = this;
+          childMenuItem._parentMenuItem = this;
         if (menuItem != null)
         {
-          menuItem.nextMenuItem = childMenuItem;
-          childMenuItem.previousMenuItem = menuItem;
+          menuItem._nextMenuItem = childMenuItem;
+          childMenuItem._previousMenuItem = menuItem;
         }
 
         menuItem = childMenuItem;
@@ -467,34 +380,43 @@
       }
     }
 
-    internal void UpdateFlatMenuItemNavigation()
+    public void UpdateFlatMenuItemNavigation()
     {
       int num = 0;
       MenuItem menuItem1 = null;
-      foreach (MenuItem odinMenuItem2 in menuTree.DrawInSearchMode ? (IEnumerable<MenuItem>) menuTree.FlatMenuTree : menuTree.EnumerateTree())
+      foreach (MenuItem odinMenuItem2 in MenuTree.DrawInSearchMode ? (IEnumerable<MenuItem>) MenuTree.FlatMenuTree : MenuTree.EnumerateTree())
       {
-        odinMenuItem2.flatTreeIndex = num++;
-        odinMenuItem2.nextMenuItemFlat = null;
-        odinMenuItem2.previousMenuItemFlat = null;
+        num++;
+        odinMenuItem2._nextMenuItemFlat = null;
+        odinMenuItem2._previousMenuItemFlat = null;
         if (menuItem1 != null)
         {
-          odinMenuItem2.previousMenuItemFlat = menuItem1;
-          menuItem1.nextMenuItemFlat = odinMenuItem2;
+          odinMenuItem2._previousMenuItemFlat = menuItem1;
+          menuItem1._nextMenuItemFlat = odinMenuItem2;
         }
         menuItem1 = odinMenuItem2;
       }
     }
 
-    /// <summary>Handles the mouse events.</summary>
-    /// <param name="rect">The rect.</param>
-    /// <param name="triangleRect">The triangle rect.</param>
+    public bool _IsVisible()
+    {
+      return MenuTree.DrawInSearchMode ? MenuTree.FlatMenuTree.Contains(this) : ParentMenuItemsBottomUp(false).All(x => x.Toggled);
+    }
+
+    private string GetFullPath()
+    {
+      EnsureInitialized();
+      MenuItem parent = Parent;
+      return parent == null ? SmartName : parent.GetFullPath() + "/" + SmartName;
+    }
+
     private void HandleMouseEvents(Rect rect, Rect triangleRect)
     {
       EventType type = Event.current.type;
-      if (type == EventType.Used && wasMouseDownEvent)
+      if (type == EventType.Used && _wasMouseDownEvent)
       {
-        wasMouseDownEvent = false;
-        handleClickEventOnMouseUp = this;
+        _wasMouseDownEvent = false;
+        _handleClickEventOnMouseUp = this;
       }
 
       int num1;
@@ -504,7 +426,7 @@
           num1 = 1;
           break;
         case EventType.MouseUp:
-          num1 = handleClickEventOnMouseUp == this ? 1 : 0;
+          num1 = _handleClickEventOnMouseUp == this ? 1 : 0;
           break;
         default:
           num1 = 0;
@@ -513,17 +435,14 @@
 
       if (num1 == 0)
         return;
-      handleClickEventOnMouseUp = null;
-      wasMouseDownEvent = false;
+      _handleClickEventOnMouseUp = null;
+      _wasMouseDownEvent = false;
       if (!rect.Contains(Event.current.mousePosition))
         return;
       bool flag1 = ChildMenuItems.Any();
       bool isSelected = IsSelected;
       switch (Event.current.button)
       {
-        case 1 when OnRightClick != null:
-          OnRightClick(this);
-          break;
         case 0:
         {
           bool flag2 = false;
@@ -544,30 +463,14 @@
                 odinMenuItem.Toggled = flag3;
             }
             else
-              Toggled = flag3;
-          }
-          else if (menuTree.Selection.SupportsMultiSelect && Event.current.modifiers == EventModifiers.Shift && menuTree.Selection.Count > 0)
-          {
-            MenuItem menuItem = menuTree.Selection.First();
-            int num2 = Mathf.Abs(menuItem.FlatTreeIndex - FlatTreeIndex) + 1;
-            bool flag3 = menuItem.FlatTreeIndex < FlatTreeIndex;
-            menuTree.Selection.Clear();
-            for (int index = 0; index < num2 && menuItem != null; ++index)
             {
-              menuItem.Select(true);
-              if (menuItem != this)
-                menuItem = flag3 ? menuItem.NextVisualMenuItem : menuItem.PrevVisualMenuItem;
-              else
-                break;
+              Toggled = flag3;
             }
           }
           else
           {
             bool addToSelection = Event.current.modifiers == EventModifiers.Control;
-            if (addToSelection & isSelected && MenuTree.Selection.SupportsMultiSelect)
-              Deselect();
-            else
-              Select(addToSelection);
+            Select(addToSelection);
             if (MenuTree.Config.ConfirmSelectionOnDoubleClick && Event.current.clickCount == 2)
               MenuTree.Selection.ConfirmSelection();
           }
@@ -580,28 +483,23 @@
       Event.current.Use();
     }
 
-    internal bool _IsVisible()
-    {
-      return menuTree.DrawInSearchMode ? menuTree.FlatMenuTree.Contains(this) : ParentMenuItemsBottomUp(false).All(x => x.Toggled);
-    }
-
     private IEnumerable<MenuItem> GetAllNextMenuItems()
     {
-      if (nextMenuItemFlat != null)
-      {
-        yield return nextMenuItemFlat;
-        foreach (MenuItem allNextMenuItem in nextMenuItemFlat.GetAllNextMenuItems())
-          yield return allNextMenuItem;
-      }
+      if (_nextMenuItemFlat == null)
+        yield break;
+
+      yield return _nextMenuItemFlat;
+      foreach (MenuItem allNextMenuItem in _nextMenuItemFlat.GetAllNextMenuItems())
+        yield return allNextMenuItem;
     }
 
     private IEnumerable<MenuItem> GetAllPreviousMenuItems()
     {
-      if (previousMenuItemFlat == null)
+      if (_previousMenuItemFlat == null)
         yield break;
 
-      yield return previousMenuItemFlat;
-      foreach (MenuItem previousMenuItem in previousMenuItemFlat.GetAllPreviousMenuItems())
+      yield return _previousMenuItemFlat;
+      foreach (MenuItem previousMenuItem in _previousMenuItemFlat.GetAllPreviousMenuItems())
         yield return previousMenuItem;
     }
 
@@ -609,9 +507,9 @@
       bool includeSelf = true)
     {
       MenuItem menuItem1 = this;
-      if (menuItem1.parentMenuItem != null)
+      if (menuItem1._parentMenuItem != null)
       {
-        foreach (MenuItem odinMenuItem2 in menuItem1.parentMenuItem.ParentMenuItemsBottomUp())
+        foreach (MenuItem odinMenuItem2 in menuItem1._parentMenuItem.ParentMenuItemsBottomUp())
           yield return odinMenuItem2;
       }
 
@@ -621,10 +519,10 @@
 
     private void EnsureInitialized()
     {
-      if (isInitialized)
+      if (_isInitialized)
         return;
-      menuTree.UpdateMenuTree();
-      if (isInitialized)
+      MenuTree.UpdateMenuTree();
+      if (_isInitialized)
         return;
       Debug.LogWarning("Could not initialize menu item. Is the menu item not part of a menu tree?");
     }

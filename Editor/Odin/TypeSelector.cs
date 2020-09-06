@@ -28,7 +28,7 @@
         DrawSearchToolbar = true
       };
 
-      _selectionTree = new MenuTree(true) { Config = config };
+      _selectionTree = new MenuTree { Config = config };
       MenuTree.ActiveMenuTree = _selectionTree;
       BuildSelectionTree(_selectionTree);
       _selectionTree.Selection.SelectionConfirmed += (Action<MenuTreeSelection>) (x =>
@@ -180,12 +180,11 @@
     /// <summary>Builds the selection tree.</summary>
     private void BuildSelectionTree(MenuTree tree)
     {
-      tree.Selection.SupportsMultiSelect = false;
       tree.DefaultMenuStyle = OdinMenuStyle.TreeViewStyle;
       if (_nameTypeList == null)
         return;
 
-      foreach (var item in _nameTypeList)
+      foreach (TypeItem item in _nameTypeList)
       {
         tree.AddObjectAtPath(item.Name, item.Type);
       }

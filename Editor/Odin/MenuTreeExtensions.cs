@@ -8,13 +8,6 @@
   {
     private static readonly List<MenuItem> Cache = new List<MenuItem>(5);
 
-    /// <summary>
-    /// Adds the menu item at the specified menu item path and populates the result list with all menu items created in order to add the menuItem at the specified path.
-    /// </summary>
-    /// <param name="tree">The tree instance.</param>
-    /// <param name="result">The result list.</param>
-    /// <param name="path">The menu item path.</param>
-    /// <param name="menuItem">The menu item.</param>
     private static void AddMenuItemAtPath(
       this MenuTree tree,
       ICollection<MenuItem> result,
@@ -87,13 +80,6 @@
       result.Add(menuItem);
     }
 
-    /// <summary>
-    /// Adds the menu item at specified menu item path, and returns all menu items created in order to add the menuItem at the specified path.
-    /// </summary>
-    /// <param name="tree">The tree.</param>
-    /// <param name="path">The menu item path.</param>
-    /// <param name="menuItem">The menu item.</param>
-    /// <returns>Returns all menu items created in order to add the menu item at the specified menu item path.</returns>
     private static IEnumerable<MenuItem> AddMenuItemAtPath(
       this MenuTree tree,
       string path,
@@ -104,14 +90,6 @@
       return Cache;
     }
 
-    /// <summary>
-    /// Adds the specified object at the specified menu item path and returns all menu items created in order to end up at the specified menu path.
-    /// </summary>
-    /// <param name="tree">The tree.</param>
-    /// <param name="menuPath">The menu path.</param>
-    /// <param name="instance">The object instance.</param>
-    /// <param name="forceShowOdinSerializedMembers">Set this to true if you want Odin serialzied members such as dictionaries and generics to be shown as well.</param>
-    /// <returns>Returns all menu items created in order to add the menu item at the specified menu item path.</returns>
     public static IEnumerable<MenuItem> AddObjectAtPath(
       this MenuTree tree,
       string menuPath,
@@ -144,6 +122,11 @@
     {
       private readonly object _instance;
 
+      public SerializedValueWrapper(object obj)
+      {
+        _instance = obj;
+      }
+
       [HideLabel]
       [ShowInInspector]
       [HideReferenceObjectPicker]
@@ -153,11 +136,6 @@
         set
         {
         }
-      }
-
-      public SerializedValueWrapper(object obj)
-      {
-        _instance = obj;
       }
     }
   }
