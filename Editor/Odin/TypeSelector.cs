@@ -20,7 +20,7 @@
     {
       _nameTypeList = collection;
       _selectionTree = new MenuTree(_nameTypeList);
-      _selectionTree.Selection.SelectionConfirmed += (Action) (() => { onSelectionConfirmed(GetCurrentSelection()); });
+      _selectionTree.SelectionChanged += (Action) (() => { onSelectionConfirmed(_selectionTree.SelectedItem.Type); });
 
       SetSelection(selectedType);
 
@@ -49,8 +49,8 @@
 
       foreach (var item in _selectionTree.EnumerateTree())
       {
-        if ((Type) item.Value == selected)
-          item.Select(true);
+        if (item.Type == selected)
+          item.Select();
       }
     }
 
@@ -93,7 +93,7 @@
       int prevFocusId = GUIUtility.hotControl;
       int prevKeyboardFocus = GUIUtility.keyboardControl;
       window.WindowPadding = default;
-      _selectionTree.Selection.SelectionConfirmed += (Action) (() =>
+      _selectionTree.SelectionChanged += (Action) (() =>
       {
         bool ctrl = Event.current != null && Event.current.modifiers != EventModifiers.Control;
         UnityEditorEventUtility.DelayAction(() =>
@@ -120,11 +120,6 @@
         GUIUtility.hotControl = prevFocusId;
         GUIUtility.keyboardControl = prevKeyboardFocus;
       });
-    }
-
-    private Type GetCurrentSelection()
-    {
-      return _selectionTree.Selection.Select(x => x.Value).OfType<Type>().FirstOrDefault();
     }
   }
 }

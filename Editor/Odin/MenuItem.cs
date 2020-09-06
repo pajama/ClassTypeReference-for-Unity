@@ -13,7 +13,7 @@
   {
     public readonly List<MenuItem> ChildMenuItems = new List<MenuItem>();
     public readonly string Name;
-    public readonly Type Value;
+    public readonly Type Type;
 
     private static readonly Color MouseOverColor = new Color(1f, 1f, 1f, 0.028f);
     private static bool _previousMenuItemWasSelected;
@@ -32,7 +32,7 @@
     private Rect _rect;
     private bool _wasMouseDownEvent;
 
-    public MenuItem(MenuTree tree, string name, Type value)
+    public MenuItem(MenuTree tree, string name, Type type)
     {
       if (tree == null)
         throw new ArgumentNullException(nameof(tree));
@@ -40,7 +40,7 @@
         throw new ArgumentNullException(nameof(name));
       _menuTree = tree;
       Name = name;
-      Value = value;
+      Type = type;
     }
 
 
@@ -68,7 +68,7 @@
 
     private static OdinMenuStyle Style => OdinMenuStyle.TreeViewStyle;
 
-    private bool IsSelected => _menuTree.Selection.Contains(this);
+    private bool IsSelected => _menuTree.SelectedItem == this;
 
 
     private MenuItem Parent
@@ -80,11 +80,9 @@
       }
     }
 
-    public void Select(bool addToSelection)
+    public void Select()
     {
-      if (!addToSelection)
-        _menuTree.Selection.Clear();
-      _menuTree.Selection.Add(this);
+      _menuTree.SelectedItem = this;
     }
 
     public IEnumerable<MenuItem> GetChildMenuItemsRecursive(
@@ -270,7 +268,6 @@
       GUIHelper.RequestRepaint();
       if (type != EventType.MouseUp || ChildMenuItems.Count != 0)
         return;
-      _menuTree.Selection.ConfirmSelection();
       Event.current.Use();
     }
 
@@ -340,9 +337,7 @@
         }
         else
         {
-          bool addToSelection = Event.current.modifiers == EventModifiers.Control;
-          Select(addToSelection);
-          _menuTree.Selection.ConfirmSelection();
+          Select();
         }
       }
 

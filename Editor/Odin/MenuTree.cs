@@ -21,7 +21,8 @@
 
     public readonly List<MenuItem> FlatMenuTree = new List<MenuItem>(); // needed to show search results
 
-    public readonly MenuTreeSelection Selection = new MenuTreeSelection();
+    // public readonly MenuTreeSelection Selection = new MenuTreeSelection();
+    private MenuItem _selectedItem;
 
     private static bool _preventAutoFocus;
 
@@ -53,6 +54,18 @@
       _searchFieldControlName = Guid.NewGuid().ToString();
       ActiveMenuTree = this;
       BuildSelectionTree(items);
+    }
+
+    public event Action SelectionChanged;
+
+    public MenuItem SelectedItem
+    {
+      get => _selectedItem;
+      set
+      {
+        _selectedItem = value;
+        SelectionChanged?.Invoke();
+        }
     }
 
     public bool DrawInSearchMode { get; private set; }
@@ -93,7 +106,7 @@
             _scrollPos = default;
           DrawInSearchMode = true;
           FlatMenuTree.Clear();
-          FlatMenuTree.AddRange(EnumerateTree().Where(x => x.Value != null).Select(x =>
+          FlatMenuTree.AddRange(EnumerateTree().Where(x => x.Type != null).Select(x =>
           {
             bool flag = FuzzySearch.Contains(_searchTerm, x.Name, out int score);
             return new
@@ -108,11 +121,13 @@
         {
           DrawInSearchMode = false;
           FlatMenuTree.Clear();
-          MenuItem menuItem = Selection.LastOrDefault();
           UpdateMenuTree();
-          Selection.SelectMany(x => x.GetParentMenuItemsRecursive(false)).ForEach(x => x.Toggled = true);
-          if (menuItem != null)
-            ScrollToMenuItem(menuItem);
+
+          foreach (MenuItem item in SelectedItem.GetParentMenuItemsRecursive(false))
+            item.Toggled = true;
+
+          if (SelectedItem != null)
+            ScrollToMenuItem(SelectedItem);
         }
       }
 
@@ -214,17 +229,15 @@
 
     private void SetupAutoScroll()
     {
-      Selection.SelectionChanged += (Action<SelectionChangedType>) (x =>
+      SelectionChanged += () =>
       {
-        if (x != SelectionChangedType.ItemAdded)
-          return;
         _requestRepaint = true;
         GUIHelper.RequestRepaint();
         if (_isFirstFrame)
-          ScrollToMenuItem(Selection.LastOrDefault(), true);
+          ScrollToMenuItem(SelectedItem, true);
         else
-          ScrollToMenuItem(Selection.LastOrDefault());
-      });
+          ScrollToMenuItem(SelectedItem);
+      };
     }
 
     private void ScrollToMenuItem(MenuItem menuItem, bool centerMenuItem = false)
