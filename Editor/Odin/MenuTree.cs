@@ -11,8 +11,11 @@
   using UnityEditor;
   using UnityEngine;
 
+  [Serializable]
   public class MenuTree : IEnumerable
   {
+    public const int SearchToolbarHeight = 22;
+
     public static MenuTree ActiveMenuTree;
     public static Rect VisibleRect;
     public static float CurrentEditorTimeHelperDeltaTime;
@@ -20,6 +23,9 @@
     public static EventType CurrentEventType;
 
     public readonly List<MenuItem> FlatMenuTree = new List<MenuItem>();
+
+    public Vector2 ScrollPos;
+    public string SearchTerm = string.Empty;
 
     private static bool _preventAutoFocus;
     private static EditorTimeHelper _currentEditorTimeHelper;
@@ -31,7 +37,6 @@
 
     private bool _isFirstFrame = true;
     private bool _hasRepaintedCurrentSearchResult = true;
-    private MenuTreeDrawingConfig _defaultConfig;
     private bool _regainSearchFieldFocus;
     private bool _hadSearchFieldFocus;
     private Rect _outerScrollViewRect;
@@ -45,6 +50,7 @@
     private bool _updateSearchResults;
     private bool _regainFocusWhenWindowFocus;
     private bool _currWindowHasFocus;
+    private OdinMenuStyle _defaultMenuStyle;
 
     public MenuTree()
     {
@@ -65,24 +71,8 @@
 
     public OdinMenuStyle DefaultMenuStyle
     {
-      get => Config.DefaultMenuStyle;
-      set => Config.DefaultMenuStyle = value;
-    }
-
-    public MenuTreeDrawingConfig Config
-    {
-      get
-      {
-        MenuTreeDrawingConfig treeDrawingConfig = _defaultConfig ?? new MenuTreeDrawingConfig
-        {
-          DrawScrollView = true,
-          DrawSearchToolbar = false
-        };
-
-        _defaultConfig = treeDrawingConfig;
-        return _defaultConfig;
-      }
-      set => _defaultConfig = value;
+      get => _defaultMenuStyle ?? (_defaultMenuStyle = new OdinMenuStyle { Height = 22 });
+      set => _defaultMenuStyle = value;
     }
 
     public IEnumerable<MenuItem> EnumerateTree(bool includeRootNode = false)
@@ -103,47 +93,34 @@
 
     public void DrawSearchToolbar(GUIStyle toolbarStyle = null)
     {
-      MenuTreeDrawingConfig config = Config;
-      Rect rect1 = GUILayoutUtility.GetRect(0.0f, config.SearchToolbarHeight, GUILayoutOptions.ExpandWidth());
+      Rect rect1 = GUILayoutUtility.GetRect(0.0f, SearchToolbarHeight, GUILayoutOptions.ExpandWidth());
       if (Event.current.type == EventType.Repaint)
         (toolbarStyle ?? SirenixGUIStyles.ToolbarBackground).Draw(rect1, GUIContent.none, 0);
       Rect rect2 = rect1.HorizontalPadding(5f).AlignMiddle(16f);
       rect2.xMin += 3f;
       ++rect2.y;
       EditorGUI.BeginChangeCheck();
-      config.SearchTerm = DrawSearchField(rect2, config.SearchTerm, config.AutoFocusSearchBar);
+      SearchTerm = DrawSearchField(rect2, SearchTerm);
       if ((EditorGUI.EndChangeCheck() || _updateSearchResults) && _hasRepaintedCurrentSearchResult)
       {
         _updateSearchResults = false;
         _hasRepaintedCurrentSearchResult = false;
-        if (!string.IsNullOrEmpty(config.SearchTerm))
+        if (!string.IsNullOrEmpty(SearchTerm))
         {
           if (!DrawInSearchMode)
-            config.ScrollPos = default;
+            ScrollPos = default;
           DrawInSearchMode = true;
-          if (config.SearchFunction != null)
+          FlatMenuTree.Clear();
+          FlatMenuTree.AddRange(EnumerateTree().Where(x => x.Value != null).Select(x =>
           {
-            FlatMenuTree.Clear();
-            foreach (MenuItem odinMenuItem in EnumerateTree())
+            bool flag = FuzzySearch.Contains(SearchTerm, x.SearchString, out int score);
+            return new
             {
-              if (config.SearchFunction(odinMenuItem))
-                FlatMenuTree.Add(odinMenuItem);
-            }
-          }
-          else
-          {
-            FlatMenuTree.Clear();
-            FlatMenuTree.AddRange(EnumerateTree().Where(x => x.Value != null).Select(x =>
-            {
-              bool flag = FuzzySearch.Contains(Config.SearchTerm, x.SearchString, out int score);
-              return new
-              {
-                score,
-                item = x,
-                include = flag
-              };
-            }).Where(x => x.include).OrderByDescending(x => x.score).Select(x => x.item));
-          }
+              score,
+              item = x,
+              include = flag
+            };
+          }).Where(x => x.include).OrderByDescending(x => x.score).Select(x => x.item));
 
           _root.UpdateFlatMenuItemNavigation();
         }
@@ -166,7 +143,7 @@
     }
 
     /// <summary>Draws the menu tree recursively.</summary>
-    public void DrawMenuTree()
+    public void DrawMenuTree(bool drawSearchBar)
     {
       EditorTimeHelper time = EditorTimeHelper.Time;
       EditorTimeHelper.Time = _timeHelper;
@@ -175,50 +152,46 @@
       {
         _timeHelper.Update();
         _frameCounter.Update();
-        MenuTreeDrawingConfig config = Config;
         if (_requestRepaint)
         {
           GUIHelper.RequestRepaint();
           _requestRepaint = false;
         }
 
-        if (config.DrawSearchToolbar)
+        if (drawSearchBar)
           DrawSearchToolbar();
         Rect outerRect = EditorGUILayout.BeginVertical();
         HandleActiveMenuTreeState(outerRect);
-        if (config.DrawScrollView)
+        if (Event.current.type == EventType.Repaint)
+          _outerScrollViewRect = outerRect;
+        ScrollPos = _hideScrollbarsWhileContentIsExpanding <= 0 ? EditorGUILayout.BeginScrollView(ScrollPos, GUILayoutOptions.ExpandHeight(false)) : EditorGUILayout.BeginScrollView(ScrollPos, GUIStyle.none, GUIStyle.none, GUILayoutOptions.ExpandHeight(false));
+        Rect rect = EditorGUILayout.BeginVertical();
+        if (_innerScrollViewRect.height == 0.0 || Event.current.type == EventType.Repaint)
         {
-          if (Event.current.type == EventType.Repaint)
-            _outerScrollViewRect = outerRect;
-          config.ScrollPos = _hideScrollbarsWhileContentIsExpanding <= 0 ? EditorGUILayout.BeginScrollView(config.ScrollPos, GUILayoutOptions.ExpandHeight(false)) : EditorGUILayout.BeginScrollView(config.ScrollPos, GUIStyle.none, GUIStyle.none, GUILayoutOptions.ExpandHeight(false));
-          Rect rect = EditorGUILayout.BeginVertical();
-          if (_innerScrollViewRect.height == 0.0 || Event.current.type == EventType.Repaint)
+          float num = Mathf.Abs(_innerScrollViewRect.height - rect.height);
+          float f = Mathf.Abs(_innerScrollViewRect.height - _outerScrollViewRect.height);
+          if (_innerScrollViewRect.height - 40.0 <= _outerScrollViewRect.height && num > 0.0)
           {
-            float num = Mathf.Abs(_innerScrollViewRect.height - rect.height);
-            float f = Mathf.Abs(_innerScrollViewRect.height - _outerScrollViewRect.height);
-            if (_innerScrollViewRect.height - 40.0 <= _outerScrollViewRect.height && num > 0.0)
-            {
-              _hideScrollbarsWhileContentIsExpanding = 5;
-              GUIHelper.RequestRepaint();
-            }
-            else if (Mathf.Abs(f) < 1.0)
-            {
-              _hideScrollbarsWhileContentIsExpanding = 5;
-            }
+            _hideScrollbarsWhileContentIsExpanding = 5;
+            GUIHelper.RequestRepaint();
+          }
+          else if (Mathf.Abs(f) < 1.0)
+          {
+            _hideScrollbarsWhileContentIsExpanding = 5;
+          }
+          else
+          {
+            --_hideScrollbarsWhileContentIsExpanding;
+            if (_hideScrollbarsWhileContentIsExpanding < 0)
+              _hideScrollbarsWhileContentIsExpanding = 0;
             else
-            {
-              --_hideScrollbarsWhileContentIsExpanding;
-              if (_hideScrollbarsWhileContentIsExpanding < 0)
-                _hideScrollbarsWhileContentIsExpanding = 0;
-              else
-                GUIHelper.RequestRepaint();
-            }
-
-            _innerScrollViewRect = rect;
+              GUIHelper.RequestRepaint();
           }
 
-          GUILayout.Space(-1f);
+          _innerScrollViewRect = rect;
         }
+
+        GUILayout.Space(-1f);
 
         if (_isDirty && Event.current.type == EventType.Layout)
         {
@@ -233,30 +206,11 @@
         CurrentEditorTimeHelperDeltaTime = _currentEditorTimeHelper.DeltaTime;
         List<MenuItem> odinMenuItemList = DrawInSearchMode ? FlatMenuTree : MenuItems;
         int count = odinMenuItemList.Count;
-        if (config.EXPERIMENTALINTERNALDrawFlatTreeFastNoLayout)
-        {
-          int height = DefaultMenuStyle.Height;
-          Rect rect = GUILayoutUtility.GetRect(0.0f, count * height);
-          rect.height = height;
-          for (int index = 0; index < count; ++index)
-          {
-            MenuItem menuItem = odinMenuItemList[index];
-            menuItem.Rect = rect;
-            menuItem.DrawMenuItem(0);
-            rect.y += height;
-          }
-        }
-        else
-        {
-          for (int index = 0; index < count; ++index)
-            odinMenuItemList[index].DrawMenuItems(0);
-        }
+        for (int index = 0; index < count; ++index)
+          odinMenuItemList[index].DrawMenuItems(0);
 
-        if (config.DrawScrollView)
-        {
-          EditorGUILayout.EndVertical();
-          EditorGUILayout.EndScrollView();
-        }
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.EndScrollView();
 
         EditorGUILayout.EndVertical();
         if (_scrollToWhenReady != null)
@@ -281,7 +235,7 @@
     {
       Selection.SelectionChanged += (Action<SelectionChangedType>) (x =>
       {
-        if (!Config.AutoScrollOnSelectionChanged || x != SelectionChangedType.ItemAdded)
+        if (x != SelectionChangedType.ItemAdded)
           return;
         _requestRepaint = true;
         GUIHelper.RequestRepaint();
@@ -309,28 +263,29 @@
           odinMenuItem.Toggled = true;
         if (_outerScrollViewRect.height == 0.0 || (menuItem.Rect.height <= 0.00999999977648258 || Event.current == null || Event.current.type != EventType.Repaint))
           return;
-        MenuTreeDrawingConfig config = Config;
+        
         Rect rect1 = menuItem.Rect;
         float num1;
         float num2;
         if (centerMenuItem)
         {
           Rect rect2 = _outerScrollViewRect.AlignCenterY(rect1.height);
-          num1 = rect1.yMin - (_innerScrollViewRect.y + config.ScrollPos.y - rect2.y);
-          num2 = (float) (rect1.yMax - (double) rect2.height + _innerScrollViewRect.y - (config.ScrollPos.y + (double) rect2.y));
+          num1 = rect1.yMin - (_innerScrollViewRect.y + ScrollPos.y - rect2.y);
+          num2 = (float) (rect1.yMax - (double) rect2.height + _innerScrollViewRect.y - (ScrollPos.y + (double) rect2.y));
         }
         else
         {
           _outerScrollViewRect.y = 0.0f;
-          float num3 = (float) (rect1.yMin - (_innerScrollViewRect.y + (double) config.ScrollPos.y) - 1.0);
-          float num4 = rect1.yMax - _outerScrollViewRect.height + _innerScrollViewRect.y - config.ScrollPos.y;
+          float num3 = (float) (rect1.yMin - (_innerScrollViewRect.y + (double) ScrollPos.y) - 1.0);
+          float num4 = rect1.yMax - _outerScrollViewRect.height + _innerScrollViewRect.y - ScrollPos.y;
           num1 = num3 - rect1.height;
           num2 = num4 + rect1.height;
         }
+
         if (num1 < 0.0)
-          config.ScrollPos.y += num1;
+          ScrollPos.y += num1;
         if (num2 > 0.0)
-          config.ScrollPos.y += num2;
+          ScrollPos.y += num2;
         if (_frameCounter.FrameCount > 6)
           _scrollToWhenReady = null;
         else
@@ -373,7 +328,7 @@
       GUIHelper.RequestRepaint();
     }
 
-    private string DrawSearchField(Rect rect, string searchTerm, bool autoFocus)
+    private string DrawSearchField(Rect rect, string searchTerm)
     {
       bool flag1 = GUI.GetNameOfFocusedControl() == _searchFieldControlName;
       if (_hadSearchFieldFocus != flag1)
@@ -386,7 +341,7 @@
       bool flag2 = flag1 && (Event.current.keyCode == KeyCode.DownArrow || Event.current.keyCode == KeyCode.UpArrow || (Event.current.keyCode == KeyCode.LeftArrow || Event.current.keyCode == KeyCode.RightArrow) || Event.current.keyCode == KeyCode.Return);
       if (flag2)
         GUIHelper.PushEventType(Event.current.type);
-      searchTerm = SirenixEditorGUI.SearchField(rect, searchTerm, autoFocus && _regainSearchFieldFocus && ActiveMenuTree == this, _searchFieldControlName);
+      searchTerm = SirenixEditorGUI.SearchField(rect, searchTerm, _regainSearchFieldFocus && ActiveMenuTree == this, _searchFieldControlName);
       if (_regainSearchFieldFocus && Event.current.type == EventType.Layout)
         _regainSearchFieldFocus = false;
       if (flag2)
@@ -399,7 +354,7 @@
       if (_forceRegainFocusCounter >= 20)
         return searchTerm;
 
-      if (autoFocus && _forceRegainFocusCounter < 4 && ActiveMenuTree == this)
+      if (_forceRegainFocusCounter < 4 && ActiveMenuTree == this)
         _regainSearchFieldFocus = true;
       GUIHelper.RequestRepaint();
       HandleUtility.Repaint();

@@ -106,29 +106,17 @@
       {
         if (ChildMenuItems.Count == 0)
           return false;
-        if (MenuTree.Config.UseCachedExpandedStates)
-        {
-          if (_isToggledContext == null)
-            _isToggledContext = LocalPersistentContext<bool>.Create(PersistentContext.Get("[OdinMenuItem]" + GetFullPath(), false));
-          return _isToggledContext.Value;
-        }
 
-        if (!_nonCachedToggledState.HasValue)
-          _nonCachedToggledState = false;
-        return _nonCachedToggledState.Value;
+        if (_isToggledContext == null)
+          _isToggledContext = LocalPersistentContext<bool>.Create(PersistentContext.Get("[OdinMenuItem]" + GetFullPath(), false));
+
+        return _isToggledContext.Value;
       }
       set
       {
-        if (MenuTree.Config.UseCachedExpandedStates)
-        {
-          if (_isToggledContext == null)
+        if (_isToggledContext == null)
             _isToggledContext = LocalPersistentContext<bool>.Create(PersistentContext.Get("[OdinMenuItem]" + GetFullPath(), false));
-          _isToggledContext.Value = value;
-        }
-        else
-        {
-          _nonCachedToggledState = value;
-        }
+        _isToggledContext.Value = value;
       }
     }
 
@@ -481,8 +469,7 @@
           {
             bool addToSelection = Event.current.modifiers == EventModifiers.Control;
             Select(addToSelection);
-            if (MenuTree.Config.ConfirmSelectionOnDoubleClick && Event.current.clickCount == 2)
-              MenuTree.Selection.ConfirmSelection();
+            MenuTree.Selection.ConfirmSelection();
           }
 
           break;

@@ -20,15 +20,7 @@
     {
       _nameTypeList = collection;
 
-      var config = new MenuTreeDrawingConfig
-      {
-        SearchToolbarHeight = 22,
-        AutoScrollOnSelectionChanged = true,
-        DefaultMenuStyle = new OdinMenuStyle { Height = 22 },
-        DrawSearchToolbar = true
-      };
-
-      _selectionTree = new MenuTree { Config = config };
+      _selectionTree = new MenuTree();
       MenuTree.ActiveMenuTree = _selectionTree;
       BuildSelectionTree(_selectionTree);
       _selectionTree.Selection.SelectionConfirmed += (Action<MenuTreeSelection>) (x =>
@@ -87,17 +79,11 @@
       Rect rect1 = EditorGUILayout.BeginVertical();
       EditorGUI.DrawRect(rect1, SirenixGUIStyles.DarkEditorBackground);
       GUILayout.Space(1f);
-      bool drawSearchToolbar1 = _selectionTree.Config.DrawSearchToolbar;
-      if (drawSearchToolbar1)
-      {
-        SirenixEditorGUI.BeginHorizontalToolbar(_selectionTree.Config.SearchToolbarHeight);
-        _selectionTree.DrawSearchToolbar(GUIStyle.none);
-        EditorGUI.DrawRect(GUILayoutUtility.GetLastRect().AlignLeft(1f), SirenixGUIStyles.BorderColor);
-        SirenixEditorGUI.EndHorizontalToolbar();
-      }
+      SirenixEditorGUI.BeginHorizontalToolbar(MenuTree.SearchToolbarHeight);
+      _selectionTree.DrawSearchToolbar(GUIStyle.none);
+      EditorGUI.DrawRect(GUILayoutUtility.GetLastRect().AlignLeft(1f), SirenixGUIStyles.BorderColor);
+      SirenixEditorGUI.EndHorizontalToolbar();
 
-      bool drawSearchToolbar2 = _selectionTree.Config.DrawSearchToolbar;
-      _selectionTree.Config.DrawSearchToolbar = false;
       if (_selectionTree.MenuItems.Count == 0)
       {
         GUILayout.BeginVertical(SirenixGUIStyles.ContentPadding);
@@ -105,8 +91,7 @@
         GUILayout.EndVertical();
       }
 
-      _selectionTree.DrawMenuTree();
-      _selectionTree.Config.DrawSearchToolbar = drawSearchToolbar2;
+      _selectionTree.DrawMenuTree(false);
       SirenixEditorGUI.DrawBorders(rect1, 1);
       EditorGUILayout.EndVertical();
     }
