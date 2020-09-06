@@ -257,7 +257,7 @@
       if (_wasMouseDownEvent)
         _handleClickEventOnMouseUp = this;
       SelectOnClick();
-      HandleMouseEvents(_rect, _triangleRect);
+      HandleMouseEvents(_rect);
     }
 
     private void SelectOnClick()
@@ -278,62 +278,41 @@
       return parent == null ? Name : parent.GetFullPath() + "/" + Name;
     }
 
-    private void HandleMouseEvents(Rect rect, Rect triangleRect)
+    private void HandleMouseEvents(Rect rect)
     {
-      EventType type = Event.current.type;
-      if (type == EventType.Used && _wasMouseDownEvent)
+      switch (Event.current.type)
       {
-        _wasMouseDownEvent = false;
-        _handleClickEventOnMouseUp = this;
-      }
-
-      int num1;
-      switch (type)
-      {
-        case EventType.MouseDown:
-          num1 = 1;
+        case EventType.Used when _wasMouseDownEvent:
+        {
+          _wasMouseDownEvent = false;
+          _handleClickEventOnMouseUp = this;
           break;
+        }
+
         case EventType.MouseUp:
-          num1 = _handleClickEventOnMouseUp == this ? 1 : 0;
+        {
+          if (_handleClickEventOnMouseUp != this)
+            return;
           break;
-        default:
-          num1 = 0;
-          break;
-      }
+        }
 
-      if (num1 == 0)
-        return;
+        case EventType.MouseDown:
+          break;
+
+        default:
+          return;
+      }
 
       _handleClickEventOnMouseUp = null;
       _wasMouseDownEvent = false;
       if (!rect.Contains(Event.current.mousePosition))
         return;
 
-      bool flag1 = ChildMenuItems.Any();
-      bool isSelected = IsSelected;
       if (Event.current.button == 0)
       {
-        bool flag2 = false;
-        if (flag1)
+        if (ChildMenuItems.Any())
         {
-          if (isSelected && Event.current.modifiers == EventModifiers.None)
-            flag2 = true;
-          else if (triangleRect.Contains(Event.current.mousePosition))
-            flag2 = true;
-        }
-
-        if (flag2 && triangleRect.Contains(Event.current.mousePosition))
-        {
-          bool flag3 = !Toggled;
-          if (Event.current.modifiers == EventModifiers.Alt)
-          {
-            foreach (MenuItem odinMenuItem in GetChildMenuItemsRecursive(true))
-              odinMenuItem.Toggled = flag3;
-          }
-          else
-          {
-            Toggled = flag3;
-          }
+          Toggled = ! Toggled;
         }
         else
         {
