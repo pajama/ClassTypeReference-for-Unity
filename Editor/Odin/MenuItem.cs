@@ -8,6 +8,7 @@
   using Sirenix.Utilities.Editor;
   using UnityEditor;
   using UnityEngine;
+  using UnityEngine.Assertions;
 
   public class MenuItem
   {
@@ -34,10 +35,9 @@
 
     public MenuItem(MenuTree tree, string name, Type type)
     {
-      if (tree == null)
-        throw new ArgumentNullException(nameof(tree));
-      if (name == null)
-        throw new ArgumentNullException(nameof(name));
+      Assert.IsNotNull(tree);
+      Assert.IsNotNull(name);
+
       _menuTree = tree;
       Name = name;
       Type = type;

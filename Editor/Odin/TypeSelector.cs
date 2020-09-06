@@ -28,10 +28,7 @@
         _selectionTree.EnumerateTree(folder => folder.Toggled = true);
     }
 
-    /// <summary>
-    /// Opens up the selector instance in a popup at the specified rect position.
-    /// </summary>
-    public void ShowInPopup(int dropdownHeight)
+    public void Draw(int dropdownHeight)
     {
       var popupArea = new Rect(Event.current.mousePosition, Vector2.zero);
       int dropdownWidth = CalculateOptimalWidth();
@@ -61,9 +58,6 @@
       return PopupHelper.CalculatePopupWidth(itemTextValues, style, false); // TODO: Make CalculatePopupWidth accept less variables
     }
 
-    /// <summary>
-    /// Draws the selection tree. This gets drawn using the OnInspectorGUI attribute.
-    /// </summary>
     [OnInspectorGUI]
     [PropertyOrder(-1)]
     private void DrawSelectionTree()

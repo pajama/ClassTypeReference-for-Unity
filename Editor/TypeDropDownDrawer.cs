@@ -24,7 +24,7 @@
             var dropdownItems = GetDropdownItems();
             var selector = new TypeSelector(dropdownItems, _selectedType, _attribute.ExpandAllMenuItems, onTypeSelected);
             int dropdownHeight = _attribute.DropdownHeight;
-            selector.ShowInPopup(dropdownHeight);
+            selector.Draw(dropdownHeight);
         }
 
         private SortedSet<TypeItem> GetDropdownItems()
