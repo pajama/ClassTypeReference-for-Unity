@@ -22,11 +22,7 @@
     private bool _isInitialized;
     private LocalPersistentContext<bool> _isToggledContext;
     private string _prevName;
-    private MenuItem _nextMenuItem;
-    private MenuItem _nextMenuItemFlat;
     private MenuItem _parentMenuItem;
-    private MenuItem _previousMenuItem;
-    private MenuItem _previousMenuItemFlat;
     private OdinMenuStyle _style;
     private Rect _triangleRect;
     private Rect _labelRect;
@@ -50,55 +46,12 @@
 
     public List<MenuItem> ChildMenuItems { get; }
 
-    public bool IsSelected => MenuTree.Selection.Contains(this);
-
-    public MenuTree MenuTree { get; }
 
     public string Name { get; }
 
     public string SearchString { get; }
 
-    public MenuItem NextVisualMenuItem
-    {
-      get
-      {
-        EnsureInitialized();
-        if (MenuTree.DrawInSearchMode)
-          return _nextMenuItemFlat;
-        return ChildMenuItems.Count > 0 && _nextMenuItem != null && (!Toggled && _IsVisible()) ? _nextMenuItem : GetAllNextMenuItems().FirstOrDefault(x => x._IsVisible());
-      }
-    }
-
-    public Rect Rect
-    {
-      get => _rectValue;
-      set => _rectValue = value;
-    }
-
-    public MenuItem PrevVisualMenuItem
-    {
-      get
-      {
-        EnsureInitialized();
-        if (MenuTree.DrawInSearchMode)
-          return _previousMenuItemFlat;
-
-        if (ChildMenuItems.Count <= 0 || Toggled || !_IsVisible())
-          return GetAllPreviousMenuItems().FirstOrDefault(x => x._IsVisible());
-
-        if (_previousMenuItem != null)
-        {
-          if (_previousMenuItem.ChildMenuItems.Count == 0 || !_previousMenuItem.Toggled)
-            return _previousMenuItem;
-        }
-        else if (_parentMenuItem != null)
-        {
-          return _parentMenuItem;
-        }
-
-        return GetAllPreviousMenuItems().FirstOrDefault(x => x._IsVisible());
-      }
-    }
+    public Rect Rect => _rectValue;
 
     public bool Toggled
     {
@@ -121,6 +74,10 @@
     }
 
     public object Value { get; }
+
+    private bool IsSelected => MenuTree.Selection.Contains(this);
+
+    private MenuTree MenuTree { get; }
 
     private MenuItem Parent
     {
@@ -170,11 +127,6 @@
     }
 
     private OdinMenuStyle Style => _style ?? (_style = MenuTree.DefaultMenuStyle);
-
-    public void Deselect()
-    {
-      MenuTree.Selection.Remove(this);
-    }
 
     public void Select(bool addToSelection = false)
     {
@@ -246,6 +198,7 @@
           return;
         }
       }
+
       if (currentEventType == EventType.Repaint)
       {
         _labelRect = _rectValue.AddXMin(Style.Offset + indentLevel * Style.IndentAmount);
@@ -345,42 +298,10 @@
     public void UpdateMenuTreeRecursive(bool isRoot = false)
     {
       _isInitialized = true;
-      MenuItem menuItem = null;
       foreach (MenuItem childMenuItem in ChildMenuItems)
       {
-        childMenuItem._parentMenuItem = null;
-        childMenuItem._nextMenuItem = null;
-        childMenuItem._previousMenuItemFlat = null;
-        childMenuItem._nextMenuItemFlat = null;
-        childMenuItem._previousMenuItem = null;
-        if (!isRoot)
-          childMenuItem._parentMenuItem = this;
-        if (menuItem != null)
-        {
-          menuItem._nextMenuItem = childMenuItem;
-          childMenuItem._previousMenuItem = menuItem;
-        }
-
-        menuItem = childMenuItem;
+        childMenuItem._parentMenuItem = isRoot ? null : this;
         childMenuItem.UpdateMenuTreeRecursive();
-      }
-    }
-
-    public void UpdateFlatMenuItemNavigation()
-    {
-      int num = 0;
-      MenuItem menuItem1 = null;
-      foreach (MenuItem odinMenuItem2 in MenuTree.DrawInSearchMode ? (IEnumerable<MenuItem>) MenuTree.FlatMenuTree : MenuTree.EnumerateTree())
-      {
-        num++;
-        odinMenuItem2._nextMenuItemFlat = null;
-        odinMenuItem2._previousMenuItemFlat = null;
-        if (menuItem1 != null)
-        {
-          odinMenuItem2._previousMenuItemFlat = menuItem1;
-          menuItem1._nextMenuItemFlat = odinMenuItem2;
-        }
-        menuItem1 = odinMenuItem2;
       }
     }
 
@@ -478,26 +399,6 @@
 
       GUIHelper.RemoveFocusControl();
       Event.current.Use();
-    }
-
-    private IEnumerable<MenuItem> GetAllNextMenuItems()
-    {
-      if (_nextMenuItemFlat == null)
-        yield break;
-
-      yield return _nextMenuItemFlat;
-      foreach (MenuItem allNextMenuItem in _nextMenuItemFlat.GetAllNextMenuItems())
-        yield return allNextMenuItem;
-    }
-
-    private IEnumerable<MenuItem> GetAllPreviousMenuItems()
-    {
-      if (_previousMenuItemFlat == null)
-        yield break;
-
-      yield return _previousMenuItemFlat;
-      foreach (MenuItem previousMenuItem in _previousMenuItemFlat.GetAllPreviousMenuItems())
-        yield return previousMenuItem;
     }
 
     private IEnumerable<MenuItem> ParentMenuItemsBottomUp(

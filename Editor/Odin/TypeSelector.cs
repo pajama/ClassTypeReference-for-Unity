@@ -19,10 +19,7 @@
     public TypeSelector(SortedSet<TypeItem> collection, Type selectedType, bool expandAllMenuItems)
     {
       _nameTypeList = collection;
-
-      _selectionTree = new MenuTree();
-      MenuTree.ActiveMenuTree = _selectionTree;
-      BuildSelectionTree(_selectionTree);
+      _selectionTree = new MenuTree(_nameTypeList);
       _selectionTree.Selection.SelectionConfirmed += (Action<MenuTreeSelection>) (x =>
       {
         SelectionConfirmed?.Invoke(GetCurrentSelection());
@@ -133,19 +130,6 @@
     private Type GetCurrentSelection()
     {
       return _selectionTree.Selection.Select(x => x.Value).OfType<Type>().FirstOrDefault();
-    }
-
-    /// <summary>Builds the selection tree.</summary>
-    private void BuildSelectionTree(MenuTree tree)
-    {
-      tree.DefaultMenuStyle = OdinMenuStyle.TreeViewStyle;
-      if (_nameTypeList == null)
-        return;
-
-      foreach (TypeItem item in _nameTypeList)
-      {
-        tree.AddObjectAtPath(item.Name, item.Type);
-      }
     }
   }
 }

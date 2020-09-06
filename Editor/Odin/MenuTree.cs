@@ -52,13 +52,14 @@
     private bool _currWindowHasFocus;
     private OdinMenuStyle _defaultMenuStyle;
 
-    public MenuTree()
+    public MenuTree(SortedSet<TypeItem> items)
     {
-      DefaultMenuStyle = new OdinMenuStyle();
       Selection = new MenuTreeSelection();
       _root = new MenuItem(this, nameof(_root), null);
       SetupAutoScroll();
       _searchFieldControlName = Guid.NewGuid().ToString();
+      ActiveMenuTree = this;
+      BuildSelectionTree(items);
     }
 
     public MenuItem Root => _root;
@@ -85,7 +86,6 @@
       return MenuItems.GetEnumerator();
     }
 
-    /// <summary>Enumerates the tree with a DFS.</summary>
     public void EnumerateTree(Action<MenuItem> action)
     {
       _root.GetChildMenuItemsRecursive(false).ForEach(action);
@@ -121,8 +121,6 @@
               include = flag
             };
           }).Where(x => x.include).OrderByDescending(x => x.score).Select(x => x.item));
-
-          _root.UpdateFlatMenuItemNavigation();
         }
         else
         {
@@ -133,7 +131,6 @@
           Selection.SelectMany(x => x.GetParentMenuItemsRecursive(false)).ForEach(x => x.Toggled = true);
           if (menuItem != null)
             ScrollToMenuItem(menuItem);
-          _root.UpdateFlatMenuItemNavigation();
         }
       }
 
@@ -142,7 +139,6 @@
       _hasRepaintedCurrentSearchResult = true;
     }
 
-    /// <summary>Draws the menu tree recursively.</summary>
     public void DrawMenuTree(bool drawSearchBar)
     {
       EditorTimeHelper time = EditorTimeHelper.Time;
@@ -228,7 +224,18 @@
     public void UpdateMenuTree()
     {
       _root.UpdateMenuTreeRecursive(true);
-      _root.UpdateFlatMenuItemNavigation();
+    }
+
+    private void BuildSelectionTree(SortedSet<TypeItem> items)
+    {
+      DefaultMenuStyle = OdinMenuStyle.TreeViewStyle;
+      if (items == null)
+        return;
+
+      foreach (TypeItem item in items)
+      {
+        AddObjectAtPath(item.Name, item.Type);
+      }
     }
 
     private void SetupAutoScroll()
@@ -263,7 +270,7 @@
           odinMenuItem.Toggled = true;
         if (_outerScrollViewRect.height == 0.0 || (menuItem.Rect.height <= 0.00999999977648258 || Event.current == null || Event.current.type != EventType.Repaint))
           return;
-        
+
         Rect rect1 = menuItem.Rect;
         float num1;
         float num2;
