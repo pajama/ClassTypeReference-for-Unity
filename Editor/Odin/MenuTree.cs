@@ -21,9 +21,6 @@
 
     public readonly List<MenuItem> FlatMenuTree = new List<MenuItem>(); // needed to show search results
 
-    // public readonly MenuTreeSelection Selection = new MenuTreeSelection();
-    private MenuItem _selectedItem;
-
     private static bool _preventAutoFocus;
 
     private readonly GUIFrameCounter _frameCounter = new GUIFrameCounter();
@@ -33,17 +30,18 @@
 
     [SerializeField] private Vector2 _scrollPos;
     [SerializeField] private string _searchTerm = string.Empty;
+    private MenuItem _selectedItem;
+    private MenuItem _scrollToWhenReady;
+    private Rect _outerScrollViewRect;
+    private Rect _innerScrollViewRect;
+    private int _hideScrollbarsWhileContentIsExpanding;
+    private int _forceRegainFocusCounter;
     private bool _isFirstFrame = true;
     private bool _hasRepaintedCurrentSearchResult = true;
     private bool _regainSearchFieldFocus;
     private bool _hadSearchFieldFocus;
-    private Rect _outerScrollViewRect;
-    private int _hideScrollbarsWhileContentIsExpanding;
-    private Rect _innerScrollViewRect;
-    private int _forceRegainFocusCounter;
     private bool _requestRepaint;
     private bool _scrollToCenter;
-    private MenuItem _scrollToWhenReady;
     private bool _regainFocusWhenWindowFocus;
     private bool _currWindowHasFocus;
 
@@ -189,11 +187,10 @@
         var visibleRect = GUIClipInfo.VisibleRect.Expand(300f);
         CurrentEvent = Event.current;
         CurrentEventType = CurrentEvent.type;
-        var currentEditorTimeHelperDeltaTime = EditorTimeHelper.Time.DeltaTime;
         List<MenuItem> odinMenuItemList = DrawInSearchMode ? FlatMenuTree : MenuItems;
         int count = odinMenuItemList.Count;
         for (int index = 0; index < count; ++index)
-          odinMenuItemList[index].DrawMenuItems(0, visibleRect, currentEditorTimeHelperDeltaTime);
+          odinMenuItemList[index].DrawMenuItems(0, visibleRect);
 
         EditorGUILayout.EndVertical();
         EditorGUILayout.EndScrollView();

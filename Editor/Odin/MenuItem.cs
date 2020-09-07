@@ -22,7 +22,6 @@
 
     private readonly MenuTree _menuTree;
 
-    private float _t = -1f;
     private bool _isInitialized;
     private LocalPersistentContext<bool> _isToggledContext;
     private string _prevName;
@@ -42,7 +41,6 @@
       Name = name;
       Type = type;
     }
-
 
     public Rect Rect => _rect;
 
@@ -70,6 +68,7 @@
 
     private bool IsSelected => _menuTree.SelectedItem == this;
 
+    private bool IsFolder => ChildMenuItems.Count != 0;
 
     private MenuItem Parent
     {
@@ -110,27 +109,14 @@
         yield return menuItem;
     }
 
-    public void DrawMenuItems(int indentLevel, Rect visibleRect, float currentEditorTimeHelperDeltaTime)
+    public void DrawMenuItems(int indentLevel, Rect visibleRect)
     {
       DrawMenuItem(indentLevel, visibleRect);
-      List<MenuItem> childMenuItems = ChildMenuItems;
-      int count = childMenuItems.Count;
-      if (count == 0)
+      if ( ! Toggled)
         return;
 
-      if (_t < 0.0)
-        _t = Toggled ? 1f : 0.0f;
-
-      if (MenuTree.CurrentEventType == EventType.Layout)
-        _t = Mathf.MoveTowards(_t, Toggled ? 1f : 0.0f, currentEditorTimeHelperDeltaTime * (1f / SirenixEditorGUI.DefaultFadeGroupDuration));
-
-      if (SirenixEditorGUI.BeginFadeGroup(_t))
-      {
-        for (int index = 0; index < count; ++index)
-          childMenuItems[index].DrawMenuItems(indentLevel + 1, visibleRect, currentEditorTimeHelperDeltaTime);
-      }
-
-      SirenixEditorGUI.EndFadeGroup();
+      foreach (MenuItem childItem in ChildMenuItems)
+        childItem.DrawMenuItems(indentLevel + 1, visibleRect);
     }
 
     public void UpdateMenuTreeRecursive(bool isRoot = false)
