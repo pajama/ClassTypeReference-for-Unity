@@ -34,9 +34,11 @@
       int dropdownWidth = CalculateOptimalWidth();
       var windowSize = new Vector2(dropdownWidth, dropdownHeight);
 
-      EditorWindow focusedWindow = EditorWindow.focusedWindow;
-      OdinEditorWindow window = OdinEditorWindow.InspectObjectInDropDown(this, popupArea, windowSize);
-      SetupWindow(window, focusedWindow);
+      EditorWindow prevSelectedWindow = EditorWindow.focusedWindow;
+      int prevFocusId = GUIUtility.hotControl;
+      int prevKeyboardFocus = GUIUtility.keyboardControl;
+      var window = DropdownWindow.Create(this, popupArea, windowSize, prevFocusId, prevKeyboardFocus);
+      SetupWindow(window, prevSelectedWindow);
     }
 
     private void SetSelection(Type selected)
@@ -53,6 +55,32 @@
       var itemTextValues = _nameTypeList.Select(item => item.Name);
       var style = OdinMenuStyle.TreeViewStyle.DefaultLabelStyle;
       return PopupHelper.CalculatePopupWidth(itemTextValues, style, false); // TODO: Make CalculatePopupWidth accept less variables
+    }
+
+    private void SetupWindow(DropdownWindow window, EditorWindow prevSelectedWindow)
+    {
+      _selectionTree.SelectionChanged += (Action) (() =>
+      {
+        bool ctrl = Event.current != null && Event.current.modifiers != EventModifiers.Control;
+        UnityEditorEventUtility.DelayAction(() =>
+        {
+          if (!ctrl)
+            return;
+          window.Close();
+          if (!(bool) prevSelectedWindow)
+            return;
+          prevSelectedWindow.Focus();
+        });
+      });
+      window.OnBeginGUI += (Action) (() =>
+      {
+        if (Event.current.type != EventType.KeyDown || Event.current.keyCode != KeyCode.Escape)
+          return;
+        UnityEditorEventUtility.DelayAction(window.Close);
+        if ((bool) prevSelectedWindow)
+          prevSelectedWindow.Focus();
+        Event.current.Use();
+      });
     }
 
     [OnInspectorGUI]
@@ -77,40 +105,6 @@
       _selectionTree.DrawMenuTree(false);
       SirenixEditorGUI.DrawBorders(rect1, 1);
       EditorGUILayout.EndVertical();
-    }
-
-    private void SetupWindow(OdinEditorWindow window, EditorWindow prevSelectedWindow)
-    {
-      int prevFocusId = GUIUtility.hotControl;
-      int prevKeyboardFocus = GUIUtility.keyboardControl;
-      window.WindowPadding = default;
-      _selectionTree.SelectionChanged += (Action) (() =>
-      {
-        bool ctrl = Event.current != null && Event.current.modifiers != EventModifiers.Control;
-        UnityEditorEventUtility.DelayAction(() =>
-        {
-          if (!ctrl)
-            return;
-          window.Close();
-          if (!(bool) prevSelectedWindow)
-            return;
-          prevSelectedWindow.Focus();
-        });
-      });
-      window.OnBeginGUI += (Action) (() =>
-      {
-        if (Event.current.type != EventType.KeyDown || Event.current.keyCode != KeyCode.Escape)
-          return;
-        UnityEditorEventUtility.DelayAction(window.Close);
-        if ((bool) prevSelectedWindow)
-          prevSelectedWindow.Focus();
-        Event.current.Use();
-      });
-      window.OnClose += (Action) (() =>
-      {
-        GUIUtility.hotControl = prevFocusId;
-        GUIUtility.keyboardControl = prevKeyboardFocus;
-      });
     }
   }
 }
