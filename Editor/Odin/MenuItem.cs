@@ -10,6 +10,7 @@
   using UnityEngine;
   using UnityEngine.Assertions;
 
+  [Serializable]
   public class MenuItem
   {
     public readonly List<MenuItem> ChildMenuItems = new List<MenuItem>();
@@ -23,12 +24,10 @@
     private readonly MenuTree _menuTree;
 
     private bool _isInitialized;
-    private LocalPersistentContext<bool> _isToggledContext;
-    private string _prevName;
+    [SerializeField, HideInInspector] private bool _isToggledContext;
     private MenuItem _parentMenuItem;
     private Rect _triangleRect;
     private Rect _labelRect;
-    private StringMemberHelper _nameValueGetter;
     private Rect _rect;
     private bool _wasMouseDownEvent;
 
@@ -51,16 +50,22 @@
         if (ChildMenuItems.Count == 0)
           return false;
 
+        /*
         if (_isToggledContext == null)
           _isToggledContext = LocalPersistentContext<bool>.Create(PersistentContext.Get("[OdinMenuItem]" + GetFullPath(), false));
 
         return _isToggledContext.Value;
+        */
+        return _isToggledContext;
       }
       set
       {
+        /*
         if (_isToggledContext == null)
             _isToggledContext = LocalPersistentContext<bool>.Create(PersistentContext.Get("[OdinMenuItem]" + GetFullPath(), false));
         _isToggledContext.Value = value;
+        */
+        _isToggledContext = value;
       }
     }
 

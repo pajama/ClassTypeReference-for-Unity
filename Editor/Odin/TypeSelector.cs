@@ -25,7 +25,7 @@
       SetSelection(selectedType);
 
       if (expandAllMenuItems)
-        _selectionTree.EnumerateTree(folder => folder.Toggled = true);
+        _selectionTree.OpenAllFolders();
     }
 
     public void Draw(int dropdownHeight)
@@ -44,11 +44,8 @@
       if (selected == null)
         return;
 
-      foreach (var item in _selectionTree.EnumerateTree())
-      {
-        if (item.Type == selected)
-          item.Select();
-      }
+      string nameOfItemToSelect = _nameTypeList.First(item => item.Type == selected).Name;
+      _selectionTree.SetSelection(nameOfItemToSelect);
     }
 
     private int CalculateOptimalWidth()

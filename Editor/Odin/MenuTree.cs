@@ -68,11 +68,22 @@
 
     public bool DrawInSearchMode { get; private set; }
 
-    private List<MenuItem> MenuItems => _root.ChildMenuItems;
+    public List<MenuItem> MenuItems => _root.ChildMenuItems;
 
     public IEnumerable<MenuItem> EnumerateTree(bool includeRootNode = false)
     {
       return _root.GetChildMenuItemsRecursive(includeRootNode);
+    }
+
+    public void SetSelection(string itemName)
+    {
+      MenuItem itemToSelect = _root;
+      foreach (string part in itemName.Split('/'))
+      {
+        itemToSelect = itemToSelect.ChildMenuItems.First(item => item.Name == part);
+      }
+
+      itemToSelect.Select();
     }
 
     IEnumerator IEnumerable.GetEnumerator()
@@ -80,9 +91,9 @@
       return MenuItems.GetEnumerator();
     }
 
-    public void EnumerateTree(Action<MenuItem> action)
+    public void OpenAllFolders()
     {
-      _root.GetChildMenuItemsRecursive(false).ForEach(action);
+      _root.GetChildMenuItemsRecursive(false).ForEach(item => item.Toggled = true);
     }
 
     public void DrawSearchToolbar(GUIStyle toolbarStyle = null)
