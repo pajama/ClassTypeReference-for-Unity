@@ -24,7 +24,7 @@
     private readonly MenuTree _menuTree;
 
     private bool _isInitialized;
-    [SerializeField, HideInInspector] private bool _isToggledContext;
+    private bool _isToggled;
     private MenuItem _parentMenuItem;
     private Rect _triangleRect;
     private Rect _labelRect;
@@ -45,35 +45,13 @@
 
     public bool Toggled
     {
-      get
-      {
-        if (ChildMenuItems.Count == 0)
-          return false;
-
-        /*
-        if (_isToggledContext == null)
-          _isToggledContext = LocalPersistentContext<bool>.Create(PersistentContext.Get("[OdinMenuItem]" + GetFullPath(), false));
-
-        return _isToggledContext.Value;
-        */
-        return _isToggledContext;
-      }
-      set
-      {
-        /*
-        if (_isToggledContext == null)
-            _isToggledContext = LocalPersistentContext<bool>.Create(PersistentContext.Get("[OdinMenuItem]" + GetFullPath(), false));
-        _isToggledContext.Value = value;
-        */
-        _isToggledContext = value;
-      }
+      get => ChildMenuItems.Count != 0 && _isToggled;
+      set => _isToggled = value;
     }
 
     private static OdinMenuStyle Style => OdinMenuStyle.TreeViewStyle;
 
     private bool IsSelected => _menuTree.SelectedItem == this;
-
-    private bool IsFolder => ChildMenuItems.Count != 0;
 
     private MenuItem Parent
     {
