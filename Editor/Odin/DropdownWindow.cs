@@ -1,10 +1,7 @@
 ﻿namespace TypeReferences.Editor.Odin
 {
   using System;
-  using System.Collections;
-  using System.Collections.Generic;
   using System.Linq;
-  using System.Reflection;
   using Sirenix.OdinInspector;
   using Sirenix.OdinInspector.Editor;
   using Sirenix.Serialization;
@@ -17,17 +14,15 @@
   [ShowOdinSerializedPropertiesInInspector]
   public class DropdownWindow : EditorWindow, ISerializationCallbackReceiver
   {
-    private static readonly PropertyInfo MaterialForceVisibleProperty = typeof(MaterialEditor).GetProperty("forceVisible", BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.FlattenHierarchy);
     private static bool _hasUpdatedOdinEditors;
     [SerializeField, HideInInspector] private float labelWidth = 0.33f;
     [SerializeField, HideInInspector] private int wrappedAreaMaxHeight = 1000;
-    private object _currentTarget;
     private Editor _editor;
     private PropertyTree _propertyTree;
     private const float DefaultEditorPreviewHeight = 170f;
     private readonly EditorTimeHelper _timeHelper = new EditorTimeHelper();
     [SerializeField, HideInInspector] private SerializationData serializationData;
-    [NonSerialized] private object _inspectTargetObject; // TODO: Change to TypeSelector
+    [NonSerialized] private TypeSelector _parentSelector; // TODO: Change to TypeSelector
     [SerializeField, HideInInspector] private bool drawUnityEditorPreview;
     [NonSerialized] private int _drawCountWarmup;
     [NonSerialized] private bool _isInitialized;
@@ -40,6 +35,7 @@
     private bool _preventContentFromExpanding;
     private int _prevFocusId;
     private int _prevKeyboardFocus;
+    private bool _updatedEditorOnce;
 
     public event Action OnBeginGUI;
     public event Action OnEndGUI;
@@ -166,7 +162,7 @@
       DropdownWindow instance = CreateInstance<DropdownWindow>();
       GUIUtility.hotControl = 0;
       GUIUtility.keyboardControl = 0;
-      instance._inspectTargetObject = parentSelector;
+      instance._parentSelector = parentSelector;
       instance.titleContent = new GUIContent(parentSelector.ToString()); // TODO: check if titleContent can be removed
       instance.position = GUIHelper.GetEditorWindowRect().AlignCenter(600f, 600f);
       EditorUtility.SetDirty(instance);
@@ -183,7 +179,6 @@
       UnitySerializationUtility.SerializeUnityObject(this, ref serializationData);
     }
 
-    /// <summary>Draws the Odin Editor Window.</summary>
     protected void OnGUI()
     {
       EditorTimeHelper time = EditorTimeHelper.Time;
@@ -209,7 +204,7 @@
           _marginStyle.padding.right = 0;
           _marginStyle.padding.top = 0;
           _marginStyle.padding.bottom = 0;
-          UpdateEditors();
+          UpdateEditor();
         }
 
         EventType type = Event.current.type;
@@ -249,7 +244,7 @@
             ++_drawCountWarmup;
         }
 
-        if (Event.current.isMouse || Event.current.type == EventType.Used || _currentTarget == null)
+        if (Event.current.isMouse || Event.current.type == EventType.Used)
           Repaint();
         this.RepaintIfRequested();
         if (!contentFromExpanding)
@@ -262,68 +257,19 @@
       }
     }
 
-    private void UpdateEditors()
+    private void UpdateEditor()
     {
-      if (_currentTarget == null)
-      {
-        Debug.Log($"repainting because _currentTarget == null");
-        Repaint();
-      }
-      else
-      {
-        Debug.Log("skipping repainting");
-      }
-
-      if (_inspectTargetObject == _currentTarget)
+      if (_updatedEditorOnce)
         return;
 
+      _updatedEditorOnce = true;
+      Repaint();
       GUIHelper.RequestRepaint();
-      _currentTarget = _inspectTargetObject;
-      if (_inspectTargetObject == null)
-      {
-        _propertyTree?.Dispose();
-        _propertyTree = null;
-        if ((bool) _editor)
-          DestroyImmediate(_editor);
-        _editor = null;
-      }
-      else
-      {
-        var editorWindow = _inspectTargetObject as EditorWindow;
-        if (_inspectTargetObject.GetType().InheritsFrom<Object>() && !(bool) editorWindow)
-        {
-          var targetObject = _inspectTargetObject as Object;
-          if ((bool) targetObject)
-          {
-            if (_propertyTree != null)
-              _propertyTree.Dispose();
-            _propertyTree = null;
-            if ((bool) _editor)
-              DestroyImmediate(_editor);
-            _editor = Editor.CreateEditor(targetObject);
-            MaterialEditor editor = _editor as MaterialEditor;
-            if (editor != null && MaterialForceVisibleProperty != null)
-              MaterialForceVisibleProperty.SetValue(editor, true, null);
-          }
-          else
-          {
-            if (_propertyTree != null)
-              _propertyTree.Dispose();
-            _propertyTree = null;
-            if ((bool) _editor)
-              DestroyImmediate(_editor);
-            _editor = null;
-          }
-        }
-        else
-        {
-          _propertyTree?.Dispose();
-          if ((bool) _editor)
-            DestroyImmediate(_editor);
-          _editor = null;
-          _propertyTree = !(_inspectTargetObject is IList) ? PropertyTree.Create(_inspectTargetObject) : PropertyTree.Create(_inspectTargetObject as IList);
-        }
-      }
+      _propertyTree?.Dispose();
+      if ((bool) _editor)
+        DestroyImmediate(_editor);
+      _editor = null;
+      _propertyTree = PropertyTree.Create(_parentSelector);
     }
 
     private void InitializeIfNeeded()
