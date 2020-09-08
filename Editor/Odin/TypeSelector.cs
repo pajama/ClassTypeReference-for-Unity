@@ -32,10 +32,7 @@
       var popupArea = new Rect(Event.current.mousePosition, Vector2.zero);
       int dropdownWidth = CalculateOptimalWidth();
       var windowSize = new Vector2(dropdownWidth, dropdownHeight);
-
-      int prevFocusId = GUIUtility.hotControl;
-      int prevKeyboardFocus = GUIUtility.keyboardControl;
-      var window = DropdownWindow.Create(this, popupArea, windowSize, prevFocusId, prevKeyboardFocus);
+      var window = DropdownWindow.Create(this, popupArea, windowSize);
       SetupWindow(window);
     }
 

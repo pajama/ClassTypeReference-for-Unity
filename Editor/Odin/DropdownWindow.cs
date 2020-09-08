@@ -33,8 +33,6 @@
     private int _mouseDownKeyboardControl;
     private Vector2 _contentSize;
     private bool _preventContentFromExpanding;
-    private int _prevFocusId;
-    private int _prevKeyboardFocus;
     private bool _updatedEditorOnce;
 
     public event Action OnBeginGUI;
@@ -94,7 +92,7 @@
       EditorApplication.update += callback;
     }
 
-    public static DropdownWindow Create(TypeSelector parentSelector, Rect btnRect, Vector2 windowSize, int prevFocusId, int prevKeyboardFocus)
+    public static DropdownWindow Create(TypeSelector parentSelector, Rect btnRect, Vector2 windowSize)
     {
       DropdownWindow window = CreateOdinEditorWindowInstanceForObject(parentSelector);
       if (windowSize.x <= 1.0)
@@ -149,9 +147,6 @@
       {
         window.ShowAsDropDown(btnRect, windowSize);
       }
-
-      window._prevFocusId = prevFocusId;
-      window._prevKeyboardFocus = prevKeyboardFocus;
 
       return window;
     }
@@ -350,9 +345,6 @@
 
       Selection.selectionChanged -= SelectionChanged;
       Selection.selectionChanged -= SelectionChanged;
-
-      GUIUtility.hotControl = _prevFocusId;
-      GUIUtility.keyboardControl = _prevKeyboardFocus;
     }
   }
 }
