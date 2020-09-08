@@ -34,8 +34,6 @@
     private Vector2 _contentSize;
     private bool _preventContentFromExpanding;
     private bool _updatedEditorOnce;
-
-    public event Action OnBeginGUI;
     public event Action OnEndGUI;
 
     private bool DrawUnityEditorPreview
@@ -105,27 +103,6 @@
       btnRect.y = (int) btnRect.y;
       windowSize.x = (int) windowSize.x;
       windowSize.y = (int) windowSize.y;
-      try
-      {
-        EditorWindow curr = GUIHelper.CurrentWindow;
-        if (curr != null)
-          window.OnBeginGUI += (Action) (() => curr.Repaint());
-      }
-      catch
-      {
-      }
-
-      if (!EditorGUIUtility.isProSkin)
-      {
-        window.OnBeginGUI += (Action) (() =>
-        {
-          Rect position = window.position;
-          double width = position.width;
-          position = window.position;
-          double height = position.height;
-          SirenixEditorGUI.DrawSolidRect(new Rect(0.0f, 0.0f, (float) width, (float) height), SirenixGUIStyles.MenuBackgroundColor);
-        });
-      }
 
       window.OnEndGUI += (Action) (() =>
       {
@@ -184,12 +161,27 @@
         bool contentFromExpanding = _preventContentFromExpanding;
         if (contentFromExpanding)
           GUILayout.BeginArea(new Rect(0.0f, 0.0f, position.width, wrappedAreaMaxHeight));
-        OnBeginGUI?.Invoke();
+
+        if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
+        {
+          Close();
+          Event.current.Use();
+        }
+
+        if (!EditorGUIUtility.isProSkin)
+        {
+          SirenixEditorGUI.DrawSolidRect(new Rect(0.0f, 0.0f, position.width, position.height), SirenixGUIStyles.MenuBackgroundColor);
+        }
+
+        if (GUIHelper.CurrentWindow != null)
+          GUIHelper.CurrentWindow.Repaint();
+
         if (!_hasUpdatedOdinEditors)
         {
           // GlobalConfig<InspectorConfig>.Instance.EnsureEditorsHaveBeenUpdated(); // TODO: check if it can be removed safely
           _hasUpdatedOdinEditors = true;
         }
+
         InitializeIfNeeded();
         GUIStyle guiStyle = _marginStyle ?? new GUIStyle { padding = new RectOffset() };
         _marginStyle = guiStyle;

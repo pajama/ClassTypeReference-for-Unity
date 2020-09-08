@@ -58,13 +58,6 @@
       {
         window.Close();
       });
-      window.OnBeginGUI += (Action) (() =>
-      {
-        if (Event.current.type != EventType.KeyDown || Event.current.keyCode != KeyCode.Escape)
-          return;
-        window.Close();
-        Event.current.Use();
-      });
     }
 
     [OnInspectorGUI]
