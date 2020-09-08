@@ -44,17 +44,19 @@
     private bool _scrollToCenter;
     private bool _regainFocusWhenWindowFocus;
     private bool _currWindowHasFocus;
+    private Action<Type> _onTypeSelected;
 
-    public MenuTree(SortedSet<TypeItem> items)
+    public event Action SelectionChanged;
+
+    public MenuTree(SortedSet<TypeItem> items, Action<Type> onTypeSelected)
     {
       _root = new MenuItem(this, nameof(_root), null);
+      _onTypeSelected = onTypeSelected;
       SetupAutoScroll();
       _searchFieldControlName = Guid.NewGuid().ToString();
       ActiveMenuTree = this;
       BuildSelectionTree(items);
     }
-
-    public event Action SelectionChanged;
 
     public MenuItem SelectedItem
     {
@@ -62,8 +64,9 @@
       set
       {
         _selectedItem = value;
+        _onTypeSelected(_selectedItem.Type);
         SelectionChanged?.Invoke();
-        }
+      }
     }
 
     public bool DrawInSearchMode { get; private set; }
@@ -145,7 +148,7 @@
       _hasRepaintedCurrentSearchResult = true;
     }
 
-    public void DrawMenuTree(bool drawSearchBar)
+    public void Draw()
     {
       EditorTimeHelper time = EditorTimeHelper.Time;
       EditorTimeHelper.Time = _timeHelper;
@@ -160,8 +163,6 @@
           _requestRepaint = false;
         }
 
-        if (drawSearchBar)
-          DrawSearchToolbar();
         Rect outerRect = EditorGUILayout.BeginVertical();
         HandleActiveMenuTreeState(outerRect);
         if (Event.current.type == EventType.Repaint)

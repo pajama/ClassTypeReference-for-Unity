@@ -21,14 +21,13 @@
     private static bool _hasUpdatedOdinEditors;
     [SerializeField, HideInInspector] private float labelWidth = 0.33f;
     [SerializeField, HideInInspector] private int wrappedAreaMaxHeight = 1000;
-    private object[] _currentTargets = new object[0];
-    private Editor[] _editors = new Editor[0];
-    private PropertyTree[] _propertyTrees = new PropertyTree[0];
+    private object _currentTarget;
+    private Editor _editor;
+    private PropertyTree _propertyTree;
     private const float DefaultEditorPreviewHeight = 170f;
     private readonly EditorTimeHelper _timeHelper = new EditorTimeHelper();
     [SerializeField, HideInInspector] private SerializationData serializationData;
-    [SerializeField, HideInInspector] private Object inspectorTargetSerialized;
-    [NonSerialized] private object _inspectTargetObject;
+    [NonSerialized] private object _inspectTargetObject; // TODO: Change to TypeSelector
     [SerializeField, HideInInspector] private bool drawUnityEditorPreview;
     [NonSerialized] private int _drawCountWarmup;
     [NonSerialized] private bool _isInitialized;
@@ -49,18 +48,6 @@
     {
       get => drawUnityEditorPreview;
       set => drawUnityEditorPreview = value;
-    }
-
-    private object GetTarget()
-    {
-      if (_inspectTargetObject != null)
-        return _inspectTargetObject;
-      return inspectorTargetSerialized != (Object) null ? inspectorTargetSerialized : (object) this;
-    }
-
-    private IEnumerable<object> GetTargets()
-    {
-      yield return GetTarget();
     }
 
     private void SetupAutomaticHeightAdjustment(int maxHeight)
@@ -111,9 +98,9 @@
       EditorApplication.update += callback;
     }
 
-    public static DropdownWindow Create(object obj, Rect btnRect, Vector2 windowSize, int prevFocusId, int prevKeyboardFocus)
+    public static DropdownWindow Create(TypeSelector parentSelector, Rect btnRect, Vector2 windowSize, int prevFocusId, int prevKeyboardFocus)
     {
-      DropdownWindow window = CreateOdinEditorWindowInstanceForObject(obj);
+      DropdownWindow window = CreateOdinEditorWindowInstanceForObject(parentSelector);
       if (windowSize.x <= 1.0)
         windowSize.x = btnRect.width;
       if (windowSize.x <= 1.0)
@@ -174,22 +161,13 @@
     }
 
     private static DropdownWindow CreateOdinEditorWindowInstanceForObject(
-      object obj)
+      TypeSelector parentSelector)
     {
       DropdownWindow instance = CreateInstance<DropdownWindow>();
       GUIUtility.hotControl = 0;
       GUIUtility.keyboardControl = 0;
-      Object @object = obj as Object;
-      if ((bool) @object)
-        instance.inspectorTargetSerialized = @object;
-      else
-        instance._inspectTargetObject = obj;
-      if ((bool) (@object as Component))
-        instance.titleContent = new GUIContent((@object as Component).gameObject.name);
-      else if ((bool) @object)
-        instance.titleContent = new GUIContent(@object.name);
-      else
-        instance.titleContent = new GUIContent(obj.ToString());
+      instance._inspectTargetObject = parentSelector;
+      instance.titleContent = new GUIContent(parentSelector.ToString()); // TODO: check if titleContent can be removed
       instance.position = GUIHelper.GetEditorWindowRect().AlignCenter(600f, 600f);
       EditorUtility.SetDirty(instance);
       return instance;
@@ -249,7 +227,7 @@
         GUIHelper.PushHierarchyMode(false);
         GUIHelper.PushLabelWidth((double) labelWidth >= 1.0 ? labelWidth : _contentSize.x * labelWidth);
         GUILayout.BeginVertical(_marginStyle);
-        DrawEditors();
+        DrawEditor();
         GUILayout.EndVertical();
         GUIHelper.PopLabelWidth();
         GUIHelper.PopHierarchyMode();
@@ -271,7 +249,7 @@
             ++_drawCountWarmup;
         }
 
-        if (Event.current.isMouse || Event.current.type == EventType.Used || (_currentTargets == null || _currentTargets.Length == 0))
+        if (Event.current.isMouse || Event.current.type == EventType.Used || _currentTarget == null)
           Repaint();
         this.RepaintIfRequested();
         if (!contentFromExpanding)
@@ -284,99 +262,66 @@
       }
     }
 
-    private void DrawEditors()
-    {
-      for (int index = 0; index < _currentTargets.Length; ++index)
-        DrawEditor(index);
-    }
-
     private void UpdateEditors()
     {
-      _currentTargets = _currentTargets ?? new object[0];
-      _editors = _editors ?? new Editor[0];
-      _propertyTrees = _propertyTrees ?? new PropertyTree[0];
-      IList<object> objectList = GetTargets().ToArray() ?? new object[0];
-      if (_currentTargets.Length != objectList.Count)
+      if (_currentTarget == null)
       {
-        if (_editors.Length > objectList.Count)
-        {
-          int num = _editors.Length - objectList.Count;
-          for (int index = 0; index < num; ++index)
-          {
-            Editor editor = _editors[_editors.Length - index - 1];
-            if ((bool) editor)
-              DestroyImmediate(editor);
-          }
-        }
-
-        if (_propertyTrees.Length > objectList.Count)
-        {
-          int num = _propertyTrees.Length - objectList.Count;
-          for (int index = 0; index < num; ++index)
-            _propertyTrees[_propertyTrees.Length - index - 1]?.Dispose();
-        }
-
-        Array.Resize(ref _currentTargets, objectList.Count);
-        Array.Resize(ref _editors, objectList.Count);
-        Array.Resize(ref _propertyTrees, objectList.Count);
+        Debug.Log($"repainting because _currentTarget == null");
         Repaint();
       }
-
-      for (int index = 0; index < objectList.Count; ++index)
+      else
       {
-        object target = objectList[index];
-        object currentTarget = _currentTargets[index];
-        if (target == currentTarget)
-          continue;
+        Debug.Log("skipping repainting");
+      }
 
-        GUIHelper.RequestRepaint();
-        _currentTargets[index] = target;
-        if (target == null)
+      if (_inspectTargetObject == _currentTarget)
+        return;
+
+      GUIHelper.RequestRepaint();
+      _currentTarget = _inspectTargetObject;
+      if (_inspectTargetObject == null)
+      {
+        _propertyTree?.Dispose();
+        _propertyTree = null;
+        if ((bool) _editor)
+          DestroyImmediate(_editor);
+        _editor = null;
+      }
+      else
+      {
+        var editorWindow = _inspectTargetObject as EditorWindow;
+        if (_inspectTargetObject.GetType().InheritsFrom<Object>() && !(bool) editorWindow)
         {
-          if (_propertyTrees[index] != null)
-            _propertyTrees[index].Dispose();
-          _propertyTrees[index] = null;
-          if ((bool) _editors[index])
-            DestroyImmediate(_editors[index]);
-          _editors[index] = null;
-        }
-        else
-        {
-          var editorWindow = target as EditorWindow;
-          if (target.GetType().InheritsFrom<Object>() && !(bool) editorWindow)
+          var targetObject = _inspectTargetObject as Object;
+          if ((bool) targetObject)
           {
-            var targetObject = target as Object;
-            if ((bool) targetObject)
-            {
-              if (_propertyTrees[index] != null)
-                _propertyTrees[index].Dispose();
-              _propertyTrees[index] = null;
-              if ((bool) _editors[index])
-                DestroyImmediate(_editors[index]);
-              _editors[index] = Editor.CreateEditor(targetObject);
-              MaterialEditor editor = _editors[index] as MaterialEditor;
-              if (editor != null && MaterialForceVisibleProperty != null)
-                MaterialForceVisibleProperty.SetValue(editor, true, null);
-            }
-            else
-            {
-              if (_propertyTrees[index] != null)
-                _propertyTrees[index].Dispose();
-              _propertyTrees[index] = null;
-              if ((bool) _editors[index])
-                DestroyImmediate(_editors[index]);
-              _editors[index] = null;
-            }
+            if (_propertyTree != null)
+              _propertyTree.Dispose();
+            _propertyTree = null;
+            if ((bool) _editor)
+              DestroyImmediate(_editor);
+            _editor = Editor.CreateEditor(targetObject);
+            MaterialEditor editor = _editor as MaterialEditor;
+            if (editor != null && MaterialForceVisibleProperty != null)
+              MaterialForceVisibleProperty.SetValue(editor, true, null);
           }
           else
           {
-            if (_propertyTrees[index] != null)
-              _propertyTrees[index].Dispose();
-            if ((bool) _editors[index])
-              DestroyImmediate(_editors[index]);
-            _editors[index] = null;
-            _propertyTrees[index] = !(target is IList) ? PropertyTree.Create(target) : PropertyTree.Create(target as IList);
+            if (_propertyTree != null)
+              _propertyTree.Dispose();
+            _propertyTree = null;
+            if ((bool) _editor)
+              DestroyImmediate(_editor);
+            _editor = null;
           }
+        }
+        else
+        {
+          _propertyTree?.Dispose();
+          if ((bool) _editor)
+            DestroyImmediate(_editor);
+          _editor = null;
+          _propertyTree = !(_inspectTargetObject is IList) ? PropertyTree.Create(_inspectTargetObject) : PropertyTree.Create(_inspectTargetObject as IList);
         }
       }
     }
@@ -404,23 +349,21 @@
       InitializeIfNeeded();
     }
 
-    private void DrawEditor(int index)
+    private void DrawEditor()
     {
-      PropertyTree propertyTree = _propertyTrees[index];
-      Editor editor = _editors[index];
-      if (propertyTree != null || (editor != null && editor.target != null))
+      if (_propertyTree != null || (_editor != null && _editor.target != null))
       {
-        if (propertyTree != null)
+        if (_propertyTree != null)
         {
-          bool applyUndo = (bool) (propertyTree.WeakTargets.FirstOrDefault() as Object);
-          propertyTree.Draw(applyUndo);
+          bool applyUndo = (bool) (_propertyTree.WeakTargets.FirstOrDefault() as Object);
+          _propertyTree.Draw(applyUndo);
         }
         else
         {
           OdinEditor.ForceHideMonoScriptInEditor = true;
           try
           {
-            editor.OnInspectorGUI();
+            _editor.OnInspectorGUI();
           }
           finally
           {
@@ -431,42 +374,32 @@
 
       if (!DrawUnityEditorPreview)
         return;
-      DrawEditorPreview(index, DefaultEditorPreviewHeight);
+      DrawEditorPreview(DefaultEditorPreviewHeight);
     }
 
-    private void DrawEditorPreview(int index, float height)
+    private void DrawEditorPreview(float height)
     {
-      Editor editor = _editors[index];
-      if (!(editor != null) || !editor.HasPreviewGUI())
+      if (!(_editor != null) || !_editor.HasPreviewGUI())
         return;
       Rect controlRect = EditorGUILayout.GetControlRect(false, height);
-      editor.DrawPreview(controlRect);
+      _editor.DrawPreview(controlRect);
     }
 
     protected void OnDestroy()
     {
-      if (_editors != null)
+      if (_editor != null)
       {
-        for (int index = 0; index < _editors.Length; ++index)
+        if ((bool) _editor)
         {
-          if ((bool) _editors[index])
-          {
-            DestroyImmediate(_editors[index]);
-            _editors[index] = null;
-          }
+          DestroyImmediate(_editor);
+          _editor = null;
         }
       }
 
-      if (_propertyTrees != null)
+      if (_propertyTree != null)
       {
-        for (int index = 0; index < _propertyTrees.Length; ++index)
-        {
-          if (_propertyTrees[index] != null)
-          {
-            _propertyTrees[index].Dispose();
-            _propertyTrees[index] = null;
-          }
-        }
+        _propertyTree.Dispose();
+        _propertyTree = null;
       }
 
       Selection.selectionChanged -= SelectionChanged;

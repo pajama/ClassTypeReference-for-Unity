@@ -16,11 +16,10 @@
     private readonly MenuTree _selectionTree;
     private readonly SortedSet<TypeItem> _nameTypeList;
 
-    public TypeSelector(SortedSet<TypeItem> collection, Type selectedType, bool expandAllMenuItems, Action<Type> onSelectionConfirmed)
+    public TypeSelector(SortedSet<TypeItem> collection, Type selectedType, bool expandAllMenuItems, Action<Type> onTypeSelected)
     {
       _nameTypeList = collection;
-      _selectionTree = new MenuTree(_nameTypeList);
-      _selectionTree.SelectionChanged += (Action) (() => { onSelectionConfirmed(_selectionTree.SelectedItem.Type); });
+      _selectionTree = new MenuTree(_nameTypeList, onTypeSelected);
 
       SetSelection(selectedType);
 
@@ -34,11 +33,10 @@
       int dropdownWidth = CalculateOptimalWidth();
       var windowSize = new Vector2(dropdownWidth, dropdownHeight);
 
-      EditorWindow prevSelectedWindow = EditorWindow.focusedWindow;
       int prevFocusId = GUIUtility.hotControl;
       int prevKeyboardFocus = GUIUtility.keyboardControl;
       var window = DropdownWindow.Create(this, popupArea, windowSize, prevFocusId, prevKeyboardFocus);
-      SetupWindow(window, prevSelectedWindow);
+      SetupWindow(window);
     }
 
     private void SetSelection(Type selected)
@@ -57,28 +55,17 @@
       return PopupHelper.CalculatePopupWidth(itemTextValues, style, false); // TODO: Make CalculatePopupWidth accept less variables
     }
 
-    private void SetupWindow(DropdownWindow window, EditorWindow prevSelectedWindow)
+    private void SetupWindow(DropdownWindow window)
     {
       _selectionTree.SelectionChanged += (Action) (() =>
       {
-        bool ctrl = Event.current != null && Event.current.modifiers != EventModifiers.Control;
-        UnityEditorEventUtility.DelayAction(() =>
-        {
-          if (!ctrl)
-            return;
-          window.Close();
-          if (!(bool) prevSelectedWindow)
-            return;
-          prevSelectedWindow.Focus();
-        });
+        window.Close();
       });
       window.OnBeginGUI += (Action) (() =>
       {
         if (Event.current.type != EventType.KeyDown || Event.current.keyCode != KeyCode.Escape)
           return;
-        UnityEditorEventUtility.DelayAction(window.Close);
-        if ((bool) prevSelectedWindow)
-          prevSelectedWindow.Focus();
+        window.Close();
         Event.current.Use();
       });
     }
@@ -102,7 +89,7 @@
         GUILayout.EndVertical();
       }
 
-      _selectionTree.DrawMenuTree(false);
+      _selectionTree.Draw();
       SirenixEditorGUI.DrawBorders(rect1, 1);
       EditorGUILayout.EndVertical();
     }
