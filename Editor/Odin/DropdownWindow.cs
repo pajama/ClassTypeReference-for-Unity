@@ -16,7 +16,7 @@
   {
     private static bool _hasUpdatedOdinEditors;
     [SerializeField, HideInInspector] private float labelWidth = 0.33f;
-    [SerializeField, HideInInspector] private int wrappedAreaMaxHeight = 1000;
+    private int _wrappedAreaMaxHeight = 1000;
     private Editor _editor;
     private PropertyTree _propertyTree;
     private const float DefaultEditorPreviewHeight = 170f;
@@ -34,7 +34,8 @@
     private Vector2 _contentSize;
     private bool _preventContentFromExpanding;
     private bool _updatedEditorOnce;
-    public event Action OnEndGUI;
+    private int _framesSinceFirstUpdate;
+    private Rect _positionUponCreation;
 
     private bool DrawUnityEditorPreview
     {
@@ -42,52 +43,45 @@
       set => drawUnityEditorPreview = value;
     }
 
-    private void SetupAutomaticHeightAdjustment(int maxHeight)
+    private void SetupAutomaticHeightAdjustment()
     {
-      _preventContentFromExpanding = true;
-      wrappedAreaMaxHeight = maxHeight;
-      int screenHeight = Screen.currentResolution.height - 40;
-      Rect originalP = position;
-      originalP.x = (int) originalP.x;
-      originalP.y = (int) originalP.y;
-      originalP.width = (int) originalP.width;
-      originalP.height = (int) originalP.height;
-      Rect currentP = originalP;
-      DropdownWindow wnd = this;
-      int getGoodOriginalPointer = 0;
-      int tmpFrameCount = 0;
-      EditorApplication.CallbackFunction callback = null;
-      callback = () =>
+      void OnApplicationUpdate()
       {
-        EditorApplication.update -= callback;
-        EditorApplication.update -= callback;
-        if (wnd == null)
-          return;
-        if (tmpFrameCount++ < 10)
-          wnd.Repaint();
-        if (getGoodOriginalPointer <= 1 && originalP.y < 1.0)
+        bool windowClosed = this == null;
+        if (windowClosed)
         {
-          ++getGoodOriginalPointer;
-          originalP = position;
+          EditorApplication.update -= OnApplicationUpdate;
         }
         else
         {
-          int y = (int) _contentSize.y;
-          if (y != (double) currentP.height)
-          {
-            tmpFrameCount = 0;
-            currentP = originalP;
-            currentP.height = Math.Min(y, maxHeight);
-            wnd.minSize = new Vector2(wnd.minSize.x, currentP.height);
-            wnd.maxSize = new Vector2(wnd.maxSize.x, currentP.height);
-            if (currentP.yMax >= (double) screenHeight)
-              currentP.y -= currentP.yMax - screenHeight;
-            wnd.position = currentP;
-          }
+          AdjustHeightIfNeeded();
         }
-        EditorApplication.update += callback;
-      };
-      EditorApplication.update += callback;
+      }
+
+      EditorApplication.update += OnApplicationUpdate;
+    }
+
+    private void AdjustHeightIfNeeded()
+    {
+      // two frames are needed to move the window to the correct place from the top left corner
+      if (_framesSinceFirstUpdate < 2)
+      {
+        _framesSinceFirstUpdate++;
+        _positionUponCreation = position;
+        return;
+      }
+
+      if (_contentSize.y.ApproximatelyEquals(_positionUponCreation.height))
+        return;
+
+      _positionUponCreation.height = Math.Min(_contentSize.y, _wrappedAreaMaxHeight);
+      minSize = new Vector2(minSize.x, _positionUponCreation.height);
+      maxSize = new Vector2(maxSize.x, _positionUponCreation.height);
+      float screenHeight = Screen.currentResolution.height - 40f;
+      if (_positionUponCreation.yMax >= screenHeight)
+        _positionUponCreation.y -= _positionUponCreation.yMax - screenHeight;
+
+      position = _positionUponCreation;
     }
 
     public static DropdownWindow Create(TypeSelector parentSelector, Rect btnRect, Vector2 windowSize)
@@ -97,28 +91,17 @@
         windowSize.x = btnRect.width;
       if (windowSize.x <= 1.0)
         windowSize.x = 400f;
-      btnRect.x = (int) btnRect.x;
-      btnRect.width = (int) btnRect.width;
-      btnRect.height = (int) btnRect.height;
-      btnRect.y = (int) btnRect.y;
-      windowSize.x = (int) windowSize.x;
-      windowSize.y = (int) windowSize.y;
 
-      window.OnEndGUI += (Action) (() =>
-      {
-        Rect position = window.position;
-        double width = position.width;
-        position = window.position;
-        double height = position.height;
-        SirenixEditorGUI.DrawBorders(new Rect(0.0f, 0.0f, (float) width, (float) height), 1);
-      });
       window.labelWidth = 0.33f;
       window.DrawUnityEditorPreview = true;
       btnRect.position = GUIUtility.GUIToScreenPoint(btnRect.position);
       if ((int) windowSize.y == 0)
       {
         window.ShowAsDropDown(btnRect, new Vector2(windowSize.x, 10f));
-        window.SetupAutomaticHeightAdjustment(600);
+        window._preventContentFromExpanding = true;
+        const int maxHeight = 600;
+        window._wrappedAreaMaxHeight = maxHeight;
+        window.SetupAutomaticHeightAdjustment();
       }
       else
       {
@@ -160,7 +143,7 @@
       {
         bool contentFromExpanding = _preventContentFromExpanding;
         if (contentFromExpanding)
-          GUILayout.BeginArea(new Rect(0.0f, 0.0f, position.width, wrappedAreaMaxHeight));
+          GUILayout.BeginArea(new Rect(0.0f, 0.0f, position.width, _wrappedAreaMaxHeight));
 
         if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
         {
@@ -215,7 +198,9 @@
         GUIHelper.PopHierarchyMode();
         EditorGUILayout.EndVertical();
         EditorGUILayout.EndScrollView();
-        OnEndGUI?.Invoke();
+
+        SirenixEditorGUI.DrawBorders(new Rect(0.0f, 0.0f, position.width, position.height), 1);
+
         if (Event.current.type != type)
           _mouseDownId = -2;
         if (Event.current.type == EventType.MouseUp && GUIUtility.hotControl == _mouseDownId && (focusedWindow == _mouseDownWindow && GUIUtility.keyboardControl == _mouseDownKeyboardControl))
