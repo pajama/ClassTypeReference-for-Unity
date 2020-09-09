@@ -14,12 +14,12 @@
   [ShowOdinSerializedPropertiesInInspector]
   public class DropdownWindow : EditorWindow, ISerializationCallbackReceiver
   {
+    private const int MaxWindowHeight = 600;
+    private const float DefaultEditorPreviewHeight = 170f;
     private static bool _hasUpdatedOdinEditors;
     [SerializeField, HideInInspector] private float labelWidth = 0.33f;
-    private int _wrappedAreaMaxHeight = 1000;
     private Editor _editor;
     private PropertyTree _propertyTree;
-    private const float DefaultEditorPreviewHeight = 170f;
     private readonly EditorTimeHelper _timeHelper = new EditorTimeHelper();
     [SerializeField, HideInInspector] private SerializationData serializationData;
     [NonSerialized] private TypeSelector _parentSelector; // TODO: Change to TypeSelector
@@ -74,7 +74,7 @@
       if (_contentSize.y.ApproximatelyEquals(_positionUponCreation.height))
         return;
 
-      _positionUponCreation.height = Math.Min(_contentSize.y, _wrappedAreaMaxHeight);
+      _positionUponCreation.height = Math.Min(_contentSize.y, MaxWindowHeight);
       minSize = new Vector2(minSize.x, _positionUponCreation.height);
       maxSize = new Vector2(maxSize.x, _positionUponCreation.height);
       float screenHeight = Screen.currentResolution.height - 40f;
@@ -84,28 +84,24 @@
       position = _positionUponCreation;
     }
 
-    public static DropdownWindow Create(TypeSelector parentSelector, Rect btnRect, Vector2 windowSize)
+    public static DropdownWindow Create(TypeSelector parentSelector, Rect windowArea)
     {
       DropdownWindow window = CreateOdinEditorWindowInstanceForObject(parentSelector);
-      if (windowSize.x <= 1.0)
-        windowSize.x = btnRect.width;
-      if (windowSize.x <= 1.0)
-        windowSize.x = 400f;
+      if (windowArea.width == 0f)
+        windowArea.width = 400f;
 
       window.labelWidth = 0.33f;
       window.DrawUnityEditorPreview = true;
-      btnRect.position = GUIUtility.GUIToScreenPoint(btnRect.position);
-      if ((int) windowSize.y == 0)
+      windowArea.position = GUIUtility.GUIToScreenPoint(windowArea.position);
+      if (windowArea.height == 0f)
       {
-        window.ShowAsDropDown(btnRect, new Vector2(windowSize.x, 10f));
+        window.ShowAsDropDown(windowArea, new Vector2(windowArea.width, 10f));
         window._preventContentFromExpanding = true;
-        const int maxHeight = 600;
-        window._wrappedAreaMaxHeight = maxHeight;
         window.SetupAutomaticHeightAdjustment();
       }
       else
       {
-        window.ShowAsDropDown(btnRect, windowSize);
+        window.ShowAsDropDown(windowArea, windowArea.size);
       }
 
       return window;
@@ -143,7 +139,7 @@
       {
         bool contentFromExpanding = _preventContentFromExpanding;
         if (contentFromExpanding)
-          GUILayout.BeginArea(new Rect(0.0f, 0.0f, position.width, _wrappedAreaMaxHeight));
+          GUILayout.BeginArea(new Rect(0.0f, 0.0f, position.width, MaxWindowHeight));
 
         if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
         {

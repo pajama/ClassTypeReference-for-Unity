@@ -80,6 +80,9 @@
 
     public void SetSelection(string itemName)
     {
+      if (string.IsNullOrEmpty(itemName))
+        return;
+
       MenuItem itemToSelect = _root;
       foreach (string part in itemName.Split('/'))
       {

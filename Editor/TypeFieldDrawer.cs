@@ -14,18 +14,18 @@
         private static readonly int ControlHint = typeof(TypeReferencePropertyDrawer).GetHashCode();
 
         private readonly SerializedTypeReference _serializedTypeRef;
-        private readonly TypeDropDownDrawer _dropDownDrawer;
+        private readonly TypeDropdownDrawer _dropdownDrawer;
         private Rect _position;
         private bool _triggerDropDown;
 
         public TypeFieldDrawer(
             SerializedTypeReference serializedTypeRef,
             Rect position,
-            TypeDropDownDrawer dropDownDrawer)
+            TypeDropdownDrawer dropdownDrawer)
         {
             _serializedTypeRef = serializedTypeRef;
             _position = position;
-            _dropDownDrawer = dropDownDrawer;
+            _dropdownDrawer = dropdownDrawer;
         }
 
         public void Draw()
@@ -50,7 +50,7 @@
             if ( ! _triggerDropDown)
                 return;
 
-            _dropDownDrawer.Draw(OnTypeSelected);
+            _dropdownDrawer.Draw(OnTypeSelected);
         }
 
         private void ReactToCurrentEvent(int controlID)

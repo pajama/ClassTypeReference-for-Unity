@@ -1,5 +1,6 @@
 namespace TypeReferences.Editor
 {
+    using System;
     using TypeReferences;
     using UnityEditor;
     using UnityEngine;
@@ -33,12 +34,22 @@ namespace TypeReferences.Editor
 
         private void DrawTypeReferenceField(Rect position, SerializedProperty property)
         {
-            var constraints = (attribute as TypeOptionsAttribute) ?? new TypeOptionsAttribute();
+            var typeOptionsAttribute = attribute as TypeOptionsAttribute ?? new TypeOptionsAttribute();
             var serializedTypeRef = new SerializedTypeReference(property);
 
-            var dropDown = new TypeDropDownDrawer(
-                serializedTypeRef.TypeNameAndAssembly,
-                constraints,
+            var selectedType = TypeCache.GetType(serializedTypeRef.TypeNameAndAssembly);
+
+            if (selectedType != null && !typeOptionsAttribute.MatchesRequirements(selectedType))
+            {
+                Debug.Log($"{property.name} had the {selectedType} value but the type does not match " +
+                          $"constraints set in the attribute, so it was set to null.");
+                selectedType = null;
+                serializedTypeRef.TypeNameAndAssembly = string.Empty;
+            }
+
+            var dropDown = new TypeDropdownDrawer(
+                selectedType,
+                typeOptionsAttribute,
                 fieldInfo?.DeclaringType);
 
             var fieldDrawer = new TypeFieldDrawer(serializedTypeRef, position, dropDown);

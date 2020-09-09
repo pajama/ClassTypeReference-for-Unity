@@ -29,10 +29,11 @@
 
     public void Draw(int dropdownHeight)
     {
-      var popupArea = new Rect(Event.current.mousePosition, Vector2.zero);
       int dropdownWidth = CalculateOptimalWidth();
       var windowSize = new Vector2(dropdownWidth, dropdownHeight);
-      var window = DropdownWindow.Create(this, popupArea, windowSize);
+      var popupArea = new Rect(Event.current.mousePosition, windowSize);
+
+      var window = DropdownWindow.Create(this, popupArea);
       SetupWindow(window);
     }
 

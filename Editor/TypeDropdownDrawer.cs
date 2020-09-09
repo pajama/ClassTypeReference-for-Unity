@@ -5,18 +5,18 @@
     using System.Reflection;
     using Odin;
 
-    public class TypeDropDownDrawer
+    public class TypeDropdownDrawer
     {
         private readonly TypeOptionsAttribute _attribute;
         private readonly Type _declaringType;
         private readonly TypeSelector _selector;
         private readonly Type _selectedType;
 
-        public TypeDropDownDrawer(string typeName, TypeOptionsAttribute attribute, Type declaringType)
+        public TypeDropdownDrawer(Type selectedType, TypeOptionsAttribute attribute, Type declaringType)
         {
             _attribute = attribute;
             _declaringType = declaringType;
-            _selectedType = TypeCache.GetType(typeName);
+            _selectedType = selectedType;
         }
 
         public void Draw(Action<Type> onTypeSelected)
