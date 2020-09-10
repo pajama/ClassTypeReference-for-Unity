@@ -48,7 +48,7 @@
 
     public event Action SelectionChanged;
 
-    public MenuTree(SortedSet<TypeItem> items, Action<Type> onTypeSelected)
+    public MenuTree(SortedSet<TypeItem> items, Type selectedType, Action<Type> onTypeSelected)
     {
       _root = new MenuItem(this, nameof(_root), null);
       _onTypeSelected = onTypeSelected;
@@ -56,6 +56,7 @@
       _searchFieldControlName = Guid.NewGuid().ToString();
       ActiveMenuTree = this;
       BuildSelectionTree(items);
+      SetSelection(items, selectedType);
     }
 
     public MenuItem SelectedItem
@@ -78,13 +79,18 @@
       return _root.GetChildMenuItemsRecursive(includeRootNode);
     }
 
-    public void SetSelection(string itemName)
+    private void SetSelection(SortedSet<TypeItem> items, Type selectedType)
     {
-      if (string.IsNullOrEmpty(itemName))
+      if (selectedType == null)
+        return;
+
+      string nameOfItemToSelect = items.First(item => item.Type == selectedType).Name;
+
+      if (string.IsNullOrEmpty(nameOfItemToSelect))
         return;
 
       MenuItem itemToSelect = _root;
-      foreach (string part in itemName.Split('/'))
+      foreach (string part in nameOfItemToSelect.Split('/'))
       {
         itemToSelect = itemToSelect.ChildMenuItems.First(item => item.Name == part);
       }

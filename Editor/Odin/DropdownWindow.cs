@@ -1,11 +1,14 @@
 ﻿namespace TypeReferences.Editor.Odin
 {
   using System;
+  using System.Collections.Generic;
+  using System.Linq;
   using Sirenix.OdinInspector;
   using Sirenix.OdinInspector.Editor;
   using Sirenix.Serialization;
   using Sirenix.Utilities;
   using Sirenix.Utilities.Editor;
+  using Test.Editor.OdinAttributeDrawers;
   using UnityEditor;
   using UnityEngine;
 
@@ -78,11 +81,19 @@
       position = _positionUponCreation;
     }
 
-    public static DropdownWindow Create(MenuTree selectionTree, Rect windowArea)
+    public static DropdownWindow Create(SortedSet<TypeItem> collection, Type selectedType, bool expandAllMenuItems, Action<Type> onTypeSelected, int dropdownHeight)
     {
       DropdownWindow window = CreateEditorWindow();
 
-      window._selectionTree = selectionTree;
+      window._selectionTree = new MenuTree(collection, selectedType, onTypeSelected);
+
+      if (expandAllMenuItems)
+        window._selectionTree.OpenAllFolders();
+
+      int dropdownWidth = CalculateOptimalWidth(collection);
+      var windowSize = new Vector2(dropdownWidth, dropdownHeight);
+      var windowArea = new Rect(Event.current.mousePosition, windowSize);
+
       window._selectionTree.SelectionChanged += (Action) (() =>
       {
         window.Close();
@@ -105,6 +116,13 @@
       }
 
       return window;
+    }
+
+    private static int CalculateOptimalWidth(SortedSet<TypeItem> collection)
+    {
+      var itemTextValues = collection.Select(item => item.Name);
+      var style = OdinMenuStyle.TreeViewStyle.DefaultLabelStyle;
+      return PopupHelper.CalculatePopupWidth(itemTextValues, style, false); // TODO: Make CalculatePopupWidth accept less variables
     }
 
     private static DropdownWindow CreateEditorWindow()

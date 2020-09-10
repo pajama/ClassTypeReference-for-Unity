@@ -9,7 +9,6 @@
     {
         private readonly TypeOptionsAttribute _attribute;
         private readonly Type _declaringType;
-        private readonly TypeSelector _selector;
         private readonly Type _selectedType;
 
         public TypeDropdownDrawer(Type selectedType, TypeOptionsAttribute attribute, Type declaringType)
@@ -22,9 +21,9 @@
         public void Draw(Action<Type> onTypeSelected)
         {
             var dropdownItems = GetDropdownItems();
-            var selector = new TypeSelector(dropdownItems, _selectedType, _attribute.ExpandAllMenuItems, onTypeSelected);
             int dropdownHeight = _attribute.DropdownHeight;
-            selector.Draw(dropdownHeight);
+            DropdownWindow.Create(dropdownItems, _selectedType, _attribute.ExpandAllMenuItems, onTypeSelected,
+                dropdownHeight);
         }
 
         private SortedSet<TypeItem> GetDropdownItems()
