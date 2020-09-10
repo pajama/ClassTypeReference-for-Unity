@@ -3,12 +3,8 @@
   using System;
   using System.Collections.Generic;
   using System.Linq;
-  using Sirenix.OdinInspector;
   using Sirenix.OdinInspector.Editor;
-  using Sirenix.Utilities;
-  using Sirenix.Utilities.Editor;
   using Test.Editor.OdinAttributeDrawers;
-  using UnityEditor;
   using UnityEngine;
 
   public class TypeSelector
@@ -33,8 +29,7 @@
       var windowSize = new Vector2(dropdownWidth, dropdownHeight);
       var popupArea = new Rect(Event.current.mousePosition, windowSize);
 
-      var window = DropdownWindow.Create(this, popupArea);
-      SetupWindow(window);
+      DropdownWindow.Create(_selectionTree, popupArea);
     }
 
     private void SetSelection(Type selected)
@@ -51,38 +46,6 @@
       var itemTextValues = _nameTypeList.Select(item => item.Name);
       var style = OdinMenuStyle.TreeViewStyle.DefaultLabelStyle;
       return PopupHelper.CalculatePopupWidth(itemTextValues, style, false); // TODO: Make CalculatePopupWidth accept less variables
-    }
-
-    private void SetupWindow(DropdownWindow window)
-    {
-      _selectionTree.SelectionChanged += (Action) (() =>
-      {
-        window.Close();
-      });
-    }
-
-    [OnInspectorGUI]
-    [PropertyOrder(-1)]
-    private void DrawSelectionTree()
-    {
-      Rect rect1 = EditorGUILayout.BeginVertical();
-      EditorGUI.DrawRect(rect1, SirenixGUIStyles.DarkEditorBackground);
-      GUILayout.Space(1f);
-      SirenixEditorGUI.BeginHorizontalToolbar(MenuTree.SearchToolbarHeight);
-      _selectionTree.DrawSearchToolbar(GUIStyle.none);
-      EditorGUI.DrawRect(GUILayoutUtility.GetLastRect().AlignLeft(1f), SirenixGUIStyles.BorderColor);
-      SirenixEditorGUI.EndHorizontalToolbar();
-
-      if (_nameTypeList.Count == 0)
-      {
-        GUILayout.BeginVertical(SirenixGUIStyles.ContentPadding);
-        SirenixEditorGUI.InfoMessageBox("There are no possible values to select.");
-        GUILayout.EndVertical();
-      }
-
-      _selectionTree.Draw();
-      SirenixEditorGUI.DrawBorders(rect1, 1);
-      EditorGUILayout.EndVertical();
     }
   }
 }

@@ -153,6 +153,28 @@
 
     public void Draw()
     {
+      Rect rect = EditorGUILayout.BeginVertical();
+      EditorGUI.DrawRect(rect, SirenixGUIStyles.DarkEditorBackground);
+      GUILayout.Space(1f);
+      SirenixEditorGUI.BeginHorizontalToolbar(SearchToolbarHeight);
+      DrawSearchToolbar(GUIStyle.none);
+      EditorGUI.DrawRect(GUILayoutUtility.GetLastRect().AlignLeft(1f), SirenixGUIStyles.BorderColor);
+      SirenixEditorGUI.EndHorizontalToolbar();
+
+      if (MenuItems.Count == 0)
+      {
+        GUILayout.BeginVertical(SirenixGUIStyles.ContentPadding);
+        SirenixEditorGUI.InfoMessageBox("There are no possible values to select.");
+        GUILayout.EndVertical();
+      }
+
+      DrawTree();
+      SirenixEditorGUI.DrawBorders(rect, 1);
+      EditorGUILayout.EndVertical();
+    }
+
+    private void DrawTree()
+    {
       EditorTimeHelper time = EditorTimeHelper.Time;
       EditorTimeHelper.Time = _timeHelper;
       EditorTimeHelper.Time.Update();
