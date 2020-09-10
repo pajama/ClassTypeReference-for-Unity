@@ -3,7 +3,6 @@
   using System;
   using System.Collections.Generic;
   using System.Linq;
-  using Sirenix.OdinInspector;
   using Sirenix.OdinInspector.Editor;
   using Sirenix.Serialization;
   using Sirenix.Utilities;
@@ -12,19 +11,16 @@
   using UnityEditor;
   using UnityEngine;
 
-  [ShowOdinSerializedPropertiesInInspector]
   public class DropdownWindow : EditorWindow, ISerializationCallbackReceiver
   {
     private const int MaxWindowHeight = 600;
-    private const float DefaultEditorPreviewHeight = 170f;
 
     private static bool _hasUpdatedOdinEditors;
 
     private readonly EditorTimeHelper _timeHelper = new EditorTimeHelper();
 
-    [SerializeField, HideInInspector] private SerializationData serializationData;
+    [SerializeField] private SerializationData serializedInstance;
 
-    private Editor _editor;
     private GUIStyle _marginStyle;
     private EditorWindow _mouseDownWindow;
     private Vector2 _scrollPos;
@@ -81,7 +77,8 @@
       position = _positionUponCreation;
     }
 
-    public static DropdownWindow Create(SortedSet<TypeItem> collection, Type selectedType, bool expandAllMenuItems, Action<Type> onTypeSelected, int dropdownHeight)
+    public static void Create(SortedSet<TypeItem> collection, Type selectedType, bool expandAllMenuItems,
+      Action<Type> onTypeSelected, int dropdownHeight)
     {
       DropdownWindow window = CreateEditorWindow();
 
@@ -114,8 +111,6 @@
       {
         window.ShowAsDropDown(windowArea, windowArea.size);
       }
-
-      return window;
     }
 
     private static int CalculateOptimalWidth(SortedSet<TypeItem> collection)
@@ -137,12 +132,12 @@
 
     void ISerializationCallbackReceiver.OnAfterDeserialize()
     {
-      UnitySerializationUtility.DeserializeUnityObject(this, ref serializationData);
+      UnitySerializationUtility.DeserializeUnityObject(this, ref serializedInstance);
     }
 
     void ISerializationCallbackReceiver.OnBeforeSerialize()
     {
-      UnitySerializationUtility.SerializeUnityObject(this, ref serializationData);
+      UnitySerializationUtility.SerializeUnityObject(this, ref serializedInstance);
     }
 
     protected void OnGUI()
@@ -201,7 +196,7 @@
           _contentSize = vector2;
         GUIHelper.PushHierarchyMode(false);
         GUILayout.BeginVertical(_marginStyle);
-        DrawEditor();
+        _selectionTree.Draw();
         GUILayout.EndVertical();
         GUIHelper.PopHierarchyMode();
         EditorGUILayout.EndVertical();
@@ -244,9 +239,6 @@
       _updatedEditorOnce = true;
       Repaint();
       GUIHelper.RequestRepaint();
-      if ((bool) _editor)
-        DestroyImmediate(_editor);
-      _editor = null;
     }
 
     private void InitializeIfNeeded()
@@ -272,31 +264,8 @@
       InitializeIfNeeded();
     }
 
-    private void DrawEditor()
-    {
-      _selectionTree.Draw();
-      DrawEditorPreview(DefaultEditorPreviewHeight);
-    }
-
-    private void DrawEditorPreview(float height)
-    {
-      if (!(_editor != null) || !_editor.HasPreviewGUI())
-        return;
-      Rect controlRect = EditorGUILayout.GetControlRect(false, height);
-      _editor.DrawPreview(controlRect);
-    }
-
     protected void OnDestroy()
     {
-      if (_editor != null)
-      {
-        if ((bool) _editor)
-        {
-          DestroyImmediate(_editor);
-          _editor = null;
-        }
-      }
-
       Selection.selectionChanged -= SelectionChanged;
       Selection.selectionChanged -= SelectionChanged;
     }
