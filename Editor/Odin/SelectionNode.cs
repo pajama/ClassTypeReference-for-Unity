@@ -11,32 +11,32 @@
   using UnityEngine.Assertions;
 
   [Serializable]
-  public class MenuItem
+  public class SelectionNode
   {
-    public readonly List<MenuItem> ChildMenuItems = new List<MenuItem>();
+    public readonly List<SelectionNode> ChildNodes = new List<SelectionNode>();
     public readonly string Name;
     public readonly Type Type;
 
     private static readonly Color MouseOverColor = new Color(1f, 1f, 1f, 0.028f);
-    private static bool _previousMenuItemWasSelected;
-    private static MenuItem _handleClickEventOnMouseUp;
+    private static bool _previousNodeWasSelected;
+    private static SelectionNode _handleClickEventOnMouseUp;
 
-    private readonly MenuTree _menuTree;
+    private readonly SelectionTree _parentTree;
 
     private bool _isInitialized;
     private bool _isToggled;
-    private MenuItem _parentMenuItem;
+    private SelectionNode _parentNode;
     private Rect _triangleRect;
     private Rect _labelRect;
     private Rect _rect;
     private bool _wasMouseDownEvent;
 
-    public MenuItem(MenuTree tree, string name, Type type)
+    public SelectionNode(SelectionTree tree, string name, Type type)
     {
       Assert.IsNotNull(tree);
       Assert.IsNotNull(name);
 
-      _menuTree = tree;
+      _parentTree = tree;
       Name = name;
       Type = type;
     }
@@ -45,84 +45,84 @@
 
     public bool Toggled
     {
-      get => ChildMenuItems.Count != 0 && _isToggled;
+      get => ChildNodes.Count != 0 && _isToggled;
       set => _isToggled = value;
     }
 
     private static OdinMenuStyle Style => OdinMenuStyle.TreeViewStyle;
 
-    private bool IsSelected => _menuTree.SelectedItem == this;
+    private bool IsSelected => _parentTree.SelectedNode == this;
 
-    private MenuItem Parent
+    private SelectionNode Parent
     {
       get
       {
         EnsureInitialized();
-        return _parentMenuItem;
+        return _parentNode;
       }
     }
 
     public void Select()
     {
-      _menuTree.SelectedItem = this;
+      _parentTree.SelectedNode = this;
     }
 
-    public IEnumerable<MenuItem> GetChildMenuItemsRecursive(
+    public IEnumerable<SelectionNode> GetChildNodesRecursive(
       bool includeSelf)
     {
-      MenuItem self = this;
+      SelectionNode self = this;
       if (includeSelf)
         yield return self;
-      foreach (MenuItem menuItem in self.ChildMenuItems.SelectMany(x => x.GetChildMenuItemsRecursive(true)))
-        yield return menuItem;
+      foreach (SelectionNode childNode in self.ChildNodes.SelectMany(node => node.GetChildNodesRecursive(true)))
+        yield return childNode;
     }
 
-    public IEnumerable<MenuItem> GetParentMenuItemsRecursive(
+    public IEnumerable<SelectionNode> GetParentNodesRecursive(
       bool includeSelf,
       bool includeRoot = false)
     {
-      MenuItem self = this;
+      SelectionNode self = this;
       if (includeSelf || self.Parent == null & includeRoot)
         yield return self;
 
       if (self.Parent == null)
         yield break;
 
-      foreach (MenuItem menuItem in self.Parent.GetParentMenuItemsRecursive(true, includeRoot))
-        yield return menuItem;
+      foreach (SelectionNode node in self.Parent.GetParentNodesRecursive(true, includeRoot))
+        yield return node;
     }
 
-    public void DrawMenuItems(int indentLevel, Rect visibleRect)
+    public void DrawSelfAndChildren(int indentLevel, Rect visibleRect)
     {
-      DrawMenuItem(indentLevel, visibleRect);
+      Draw(indentLevel, visibleRect);
       if ( ! Toggled)
         return;
 
-      foreach (MenuItem childItem in ChildMenuItems)
-        childItem.DrawMenuItems(indentLevel + 1, visibleRect);
+      foreach (SelectionNode childItem in ChildNodes)
+        childItem.DrawSelfAndChildren(indentLevel + 1, visibleRect);
     }
 
-    public void UpdateMenuTreeRecursive(bool isRoot = false)
+    public void UpdateSelectionTreeRecursive(bool isRoot = false)
     {
       _isInitialized = true;
 
-      foreach (MenuItem childMenuItem in ChildMenuItems)
+      foreach (SelectionNode childNode in ChildNodes)
       {
-        childMenuItem._parentMenuItem = isRoot ? null : this;
-        childMenuItem.UpdateMenuTreeRecursive();
+        childNode._parentNode = isRoot ? null : this;
+        childNode.UpdateSelectionTreeRecursive();
       }
     }
 
     public bool _IsVisible()
     {
-      return _menuTree.DrawInSearchMode ? _menuTree.FlatMenuTree.Contains(this) : ParentMenuItemsBottomUp(false).All(x => x.Toggled);
+      return _parentTree.DrawInSearchMode ? _parentTree.FlatTree.Contains(this) : ParentNodesBottomUp(false).All(x => x.Toggled);
     }
 
-    private void DrawMenuItem(int indentLevel, Rect visibleRect)
+    private void Draw(int indentLevel, Rect visibleRect)
     {
       Rect rect1 = GUILayoutUtility.GetRect(0.0f, Style.Height);
-      Event currentEvent = MenuTree.CurrentEvent;
-      EventType currentEventType = MenuTree.CurrentEventType;
+      Event currentEvent = SelectionTree.CurrentEvent;
+      EventType currentEventType = SelectionTree.CurrentEventType;
       if (currentEventType == EventType.Layout)
         return;
 
@@ -139,7 +139,7 @@
         bool isSelected = IsSelected;
         if (isSelected)
         {
-          if (MenuTree.ActiveMenuTree == _menuTree)
+          if (SelectionTree.ActiveSelectionTree == _parentTree)
           {
             EditorGUI.DrawRect(
               _rect,
@@ -157,7 +157,7 @@
 
         if (!isSelected && _rect.Contains(currentEvent.mousePosition))
           EditorGUI.DrawRect(_rect, MouseOverColor);
-        if (ChildMenuItems.Count > 0 && !_menuTree.DrawInSearchMode && Style.DrawFoldoutTriangle)
+        if (ChildNodes.Count > 0 && !_parentTree.DrawInSearchMode && Style.DrawFoldoutTriangle)
         {
           EditorIcon editorIcon = Toggled ? EditorIcons.TriangleDown : EditorIcons.TriangleRight;
           if (Style.AlignTriangleLeft)
@@ -204,14 +204,14 @@
         {
           float num = Style.BorderPadding;
           bool flag = true;
-          if (isSelected || _previousMenuItemWasSelected)
+          if (isSelected || _previousNodeWasSelected)
           {
             num = 0.0f;
             if (!EditorGUIUtility.isProSkin)
               flag = false;
           }
 
-          _previousMenuItemWasSelected = isSelected;
+          _previousNodeWasSelected = isSelected;
           if (flag)
           {
             Rect rect2 = _rect;
@@ -235,7 +235,7 @@
       if (type == EventType.Layout || !Rect.Contains(Event.current.mousePosition))
         return;
       GUIHelper.RequestRepaint();
-      if (type != EventType.MouseUp || ChildMenuItems.Count != 0)
+      if (type != EventType.MouseUp || ChildNodes.Count != 0)
         return;
       Event.current.Use();
     }
@@ -243,7 +243,7 @@
     private string GetFullPath()
     {
       EnsureInitialized();
-      MenuItem parent = Parent;
+      SelectionNode parent = Parent;
       return parent == null ? Name : parent.GetFullPath() + "/" + Name;
     }
 
@@ -279,7 +279,7 @@
 
       if (Event.current.button == 0)
       {
-        if (ChildMenuItems.Any())
+        if (ChildNodes.Any())
         {
           Toggled = ! Toggled;
         }
@@ -293,14 +293,14 @@
       Event.current.Use();
     }
 
-    private IEnumerable<MenuItem> ParentMenuItemsBottomUp(
+    private IEnumerable<SelectionNode> ParentNodesBottomUp(
       bool includeSelf = true)
     {
-      MenuItem self = this;
-      if (self._parentMenuItem != null)
+      SelectionNode self = this;
+      if (self._parentNode != null)
       {
-        foreach (MenuItem menuItem in self._parentMenuItem.ParentMenuItemsBottomUp())
-          yield return menuItem;
+        foreach (SelectionNode node in self._parentNode.ParentNodesBottomUp())
+          yield return node;
       }
 
       if (includeSelf)
@@ -310,7 +310,7 @@
     private void EnsureInitialized()
     {
       if (!_isInitialized)
-        _menuTree.UpdateMenuTree();
+        _parentTree.UpdateSelectionTree();
     }
   }
 }

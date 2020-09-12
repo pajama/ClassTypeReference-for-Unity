@@ -11,27 +11,27 @@
   using UnityEngine;
 
   [Serializable]
-  public class MenuTree : IEnumerable
+  public class SelectionTree : IEnumerable
   {
     public const int SearchToolbarHeight = 22;
 
-    public static MenuTree ActiveMenuTree;
+    public static SelectionTree ActiveSelectionTree;
     public static Event CurrentEvent;
     public static EventType CurrentEventType;
 
-    public readonly List<MenuItem> FlatMenuTree = new List<MenuItem>(); // needed to show search results
+    public readonly List<SelectionNode> FlatTree = new List<SelectionNode>(); // needed to show search results
 
     private static bool _preventAutoFocus;
 
     private readonly GUIFrameCounter _frameCounter = new GUIFrameCounter();
     private readonly EditorTimeHelper _timeHelper = new EditorTimeHelper(); // For some reason, it should be used to fold out selection tree
-    private readonly MenuItem _root;
+    private readonly SelectionNode _root;
     private readonly string _searchFieldControlName;
 
     [SerializeField] private Vector2 _scrollPos;
     [SerializeField] private string _searchTerm = string.Empty;
-    private MenuItem _selectedItem;
-    private MenuItem _scrollToWhenReady;
+    private SelectionNode _selectedNode;
+    private SelectionNode _scrollToWhenReady;
     private Rect _outerScrollViewRect;
     private Rect _innerScrollViewRect;
     private int _hideScrollbarsWhileContentIsExpanding;
@@ -45,38 +45,42 @@
     private bool _regainFocusWhenWindowFocus;
     private bool _currWindowHasFocus;
     private Action<Type> _onTypeSelected;
+    private string[] _selectionPaths;
 
     public event Action SelectionChanged;
 
-    public MenuTree(SortedSet<TypeItem> items, Type selectedType, Action<Type> onTypeSelected)
+    public SelectionTree(SortedSet<TypeItem> items, Type selectedType, Action<Type> onTypeSelected)
     {
-      _root = new MenuItem(this, nameof(_root), null);
+      _root = new SelectionNode(this, nameof(_root), null);
       _onTypeSelected = onTypeSelected;
+      _selectionPaths = items.Select(item => item.Name).ToArray();
       SetupAutoScroll();
       _searchFieldControlName = Guid.NewGuid().ToString();
-      ActiveMenuTree = this;
+      ActiveSelectionTree = this;
       BuildSelectionTree(items);
       SetSelection(items, selectedType);
     }
 
-    public MenuItem SelectedItem
+    public string[] SelectionPaths => _selectionPaths;
+
+    public SelectionNode SelectedNode
     {
-      get => _selectedItem;
+      get => _selectedNode;
       set
       {
-        _selectedItem = value;
-        _onTypeSelected(_selectedItem.Type);
+        _selectedNode = value;
+        _onTypeSelected(_selectedNode.Type);
         SelectionChanged?.Invoke();
       }
     }
 
     public bool DrawInSearchMode { get; private set; }
 
-    public List<MenuItem> MenuItems => _root.ChildMenuItems;
+    public List<SelectionNode> Nodes => _root.ChildNodes;
 
-    public IEnumerable<MenuItem> EnumerateTree(bool includeRootNode = false)
+    public IEnumerable<SelectionNode> EnumerateTree(bool includeRootNode = false)
     {
-      return _root.GetChildMenuItemsRecursive(includeRootNode);
+      return _root.GetChildNodesRecursive(includeRootNode);
     }
 
     private void SetSelection(SortedSet<TypeItem> items, Type selectedType)
@@ -89,10 +93,10 @@
       if (string.IsNullOrEmpty(nameOfItemToSelect))
         return;
 
-      MenuItem itemToSelect = _root;
+      SelectionNode itemToSelect = _root;
       foreach (string part in nameOfItemToSelect.Split('/'))
       {
-        itemToSelect = itemToSelect.ChildMenuItems.First(item => item.Name == part);
+        itemToSelect = itemToSelect.ChildNodes.First(item => item.Name == part);
       }
 
       itemToSelect.Select();
@@ -100,12 +104,12 @@
 
     IEnumerator IEnumerable.GetEnumerator()
     {
-      return MenuItems.GetEnumerator();
+      return Nodes.GetEnumerator();
     }
 
-    public void OpenAllFolders()
+    public void ExpandAllFolders()
     {
-      _root.GetChildMenuItemsRecursive(false).ForEach(item => item.Toggled = true);
+      _root.GetChildNodesRecursive(false).ForEach(item => item.Toggled = true);
     }
 
     public void DrawSearchToolbar(GUIStyle toolbarStyle = null)
@@ -126,8 +130,8 @@
           if (!DrawInSearchMode)
             _scrollPos = default;
           DrawInSearchMode = true;
-          FlatMenuTree.Clear();
-          FlatMenuTree.AddRange(EnumerateTree().Where(x => x.Type != null).Select(x =>
+          FlatTree.Clear();
+          FlatTree.AddRange(EnumerateTree().Where(x => x.Type != null).Select(x =>
           {
             bool flag = FuzzySearch.Contains(_searchTerm, x.Name, out int score);
             return new
@@ -141,14 +145,14 @@
         else
         {
           DrawInSearchMode = false;
-          FlatMenuTree.Clear();
-          UpdateMenuTree();
+          FlatTree.Clear();
+          UpdateSelectionTree();
 
-          foreach (MenuItem item in SelectedItem.GetParentMenuItemsRecursive(false))
+          foreach (SelectionNode item in SelectedNode.GetParentNodesRecursive(false))
             item.Toggled = true;
 
-          if (SelectedItem != null)
-            ScrollToMenuItem(SelectedItem);
+          if (SelectedNode != null)
+            ScrollToNode(SelectedNode);
         }
       }
 
@@ -167,7 +171,7 @@
       EditorGUI.DrawRect(GUILayoutUtility.GetLastRect().AlignLeft(1f), SirenixGUIStyles.BorderColor);
       SirenixEditorGUI.EndHorizontalToolbar();
 
-      if (MenuItems.Count == 0)
+      if (Nodes.Count == 0)
       {
         GUILayout.BeginVertical(SirenixGUIStyles.ContentPadding);
         SirenixEditorGUI.InfoMessageBox("There are no possible values to select.");
@@ -195,7 +199,7 @@
         }
 
         Rect outerRect = EditorGUILayout.BeginVertical();
-        HandleActiveMenuTreeState(outerRect);
+        HandleActiveSelectionTreeState(outerRect);
         if (Event.current.type == EventType.Repaint)
           _outerScrollViewRect = outerRect;
         _scrollPos = _hideScrollbarsWhileContentIsExpanding <= 0 ? EditorGUILayout.BeginScrollView(_scrollPos, GUILayoutOptions.ExpandHeight(false)) : EditorGUILayout.BeginScrollView(_scrollPos, GUIStyle.none, GUIStyle.none, GUILayoutOptions.ExpandHeight(false));
@@ -230,17 +234,17 @@
         var visibleRect = GUIClipInfo.VisibleRect.Expand(300f);
         CurrentEvent = Event.current;
         CurrentEventType = CurrentEvent.type;
-        List<MenuItem> odinMenuItemList = DrawInSearchMode ? FlatMenuTree : MenuItems;
-        int count = odinMenuItemList.Count;
+        List<SelectionNode> nodes = DrawInSearchMode ? FlatTree : Nodes;
+        int count = nodes.Count;
         for (int index = 0; index < count; ++index)
-          odinMenuItemList[index].DrawMenuItems(0, visibleRect);
+          nodes[index].DrawSelfAndChildren(0, visibleRect);
 
         EditorGUILayout.EndVertical();
         EditorGUILayout.EndScrollView();
 
         EditorGUILayout.EndVertical();
         if (_scrollToWhenReady != null)
-          ScrollToMenuItem(_scrollToWhenReady, _scrollToCenter);
+          ScrollToNode(_scrollToWhenReady, _scrollToCenter);
         if (Event.current.type != EventType.Repaint)
           return;
         _isFirstFrame = false;
@@ -251,9 +255,9 @@
       }
     }
 
-    public void UpdateMenuTree()
+    public void UpdateSelectionTree()
     {
-      _root.UpdateMenuTreeRecursive(true);
+      _root.UpdateSelectionTreeRecursive(true);
     }
 
     private void BuildSelectionTree(SortedSet<TypeItem> items)
@@ -274,34 +278,34 @@
         _requestRepaint = true;
         GUIHelper.RequestRepaint();
         if (_isFirstFrame)
-          ScrollToMenuItem(SelectedItem, true);
+          ScrollToNode(SelectedNode, true);
         else
-          ScrollToMenuItem(SelectedItem);
+          ScrollToNode(SelectedNode);
       };
     }
 
-    private void ScrollToMenuItem(MenuItem menuItem, bool centerMenuItem = false)
+    private void ScrollToNode(SelectionNode node, bool centerNode = false)
     {
-      if (menuItem == null)
+      if (node == null)
         return;
-      _scrollToCenter = centerMenuItem;
-      _scrollToWhenReady = menuItem;
-      if (!menuItem._IsVisible())
+      _scrollToCenter = centerNode;
+      _scrollToWhenReady = node;
+      if (!node._IsVisible())
       {
-        foreach (MenuItem odinMenuItem in menuItem.GetParentMenuItemsRecursive(false))
-          odinMenuItem.Toggled = true;
+        foreach (SelectionNode parentNode in node.GetParentNodesRecursive(false))
+          parentNode.Toggled = true;
       }
       else
       {
-        foreach (MenuItem odinMenuItem in menuItem.GetParentMenuItemsRecursive(false))
-          odinMenuItem.Toggled = true;
-        if (_outerScrollViewRect.height == 0.0 || (menuItem.Rect.height <= 0.00999999977648258 || Event.current == null || Event.current.type != EventType.Repaint))
+        foreach (SelectionNode parentNode in node.GetParentNodesRecursive(false))
+          parentNode.Toggled = true;
+        if (_outerScrollViewRect.height == 0.0 || (node.Rect.height <= 0.00999999977648258 || Event.current == null || Event.current.type != EventType.Repaint))
           return;
 
-        Rect rect1 = menuItem.Rect;
+        Rect rect1 = node.Rect;
         float num1;
         float num2;
-        if (centerMenuItem)
+        if (centerNode)
         {
           Rect rect2 = _outerScrollViewRect.AlignCenterY(rect1.height);
           num1 = rect1.yMin - (_innerScrollViewRect.y + _scrollPos.y - rect2.y);
@@ -327,7 +331,7 @@
       }
     }
 
-    private void HandleActiveMenuTreeState(Rect outerRect)
+    private void HandleActiveSelectionTreeState(Rect outerRect)
     {
       if (Event.current.type == EventType.Repaint)
       {
@@ -337,27 +341,27 @@
           if (_currWindowHasFocus && _regainFocusWhenWindowFocus)
           {
             if (!_preventAutoFocus)
-              ActiveMenuTree = this;
+              ActiveSelectionTree = this;
             _regainFocusWhenWindowFocus = false;
           }
         }
-        if (!_currWindowHasFocus && ActiveMenuTree == this)
-          ActiveMenuTree = null;
+        if (!_currWindowHasFocus && ActiveSelectionTree == this)
+          ActiveSelectionTree = null;
         if (_currWindowHasFocus)
-          _regainFocusWhenWindowFocus = ActiveMenuTree == this;
-        if (_currWindowHasFocus && ActiveMenuTree == null)
-          ActiveMenuTree = this;
+          _regainFocusWhenWindowFocus = ActiveSelectionTree == this;
+        if (_currWindowHasFocus && ActiveSelectionTree == null)
+          ActiveSelectionTree = this;
       }
-      MenuTreeActivationZone(outerRect);
+      SelectionTreeActivationZone(outerRect);
     }
 
-    private void MenuTreeActivationZone(Rect rect)
+    private void SelectionTreeActivationZone(Rect rect)
     {
-      if (ActiveMenuTree == this || Event.current.rawType != EventType.MouseDown || (!rect.Contains(Event.current.mousePosition) || !GUIHelper.CurrentWindowHasFocus))
+      if (ActiveSelectionTree == this || Event.current.rawType != EventType.MouseDown || (!rect.Contains(Event.current.mousePosition) || !GUIHelper.CurrentWindowHasFocus))
         return;
       _regainSearchFieldFocus = true;
       _preventAutoFocus = true;
-      ActiveMenuTree = this;
+      ActiveSelectionTree = this;
       UnityEditorEventUtility.EditorApplication_delayCall += (Action) (() => _preventAutoFocus = false);
       GUIHelper.RequestRepaint();
     }
@@ -368,27 +372,27 @@
       if (_hadSearchFieldFocus != flag1)
       {
         if (flag1)
-          ActiveMenuTree = this;
+          ActiveSelectionTree = this;
         _hadSearchFieldFocus = flag1;
       }
 
       bool flag2 = flag1 && (Event.current.keyCode == KeyCode.DownArrow || Event.current.keyCode == KeyCode.UpArrow || (Event.current.keyCode == KeyCode.LeftArrow || Event.current.keyCode == KeyCode.RightArrow) || Event.current.keyCode == KeyCode.Return);
       if (flag2)
         GUIHelper.PushEventType(Event.current.type);
-      searchTerm = SirenixEditorGUI.SearchField(rect, searchTerm, _regainSearchFieldFocus && ActiveMenuTree == this, _searchFieldControlName);
+      searchTerm = SirenixEditorGUI.SearchField(rect, searchTerm, _regainSearchFieldFocus && ActiveSelectionTree == this, _searchFieldControlName);
       if (_regainSearchFieldFocus && Event.current.type == EventType.Layout)
         _regainSearchFieldFocus = false;
       if (flag2)
       {
         GUIHelper.PopEventType();
-        if (ActiveMenuTree == this)
+        if (ActiveSelectionTree == this)
           _regainSearchFieldFocus = true;
       }
 
       if (_forceRegainFocusCounter >= 20)
         return searchTerm;
 
-      if (_forceRegainFocusCounter < 4 && ActiveMenuTree == this)
+      if (_forceRegainFocusCounter < 4 && ActiveSelectionTree == this)
         _regainSearchFieldFocus = true;
       GUIHelper.RequestRepaint();
       HandleUtility.Repaint();
@@ -397,33 +401,33 @@
       return searchTerm;
     }
 
-    public void AddTypeAtPath(string menuPath, Type type)
+    public void AddTypeAtPath(string path, Type type)
     {
-      SplitMenuPath(menuPath, out menuPath, out string name);
-      AddMenuItemAtPath(menuPath, new MenuItem(this, name, type));
+      SplitNodePath(path, out path, out string name);
+      AddNodeAtPath(path, new SelectionNode(this, name, type));
     }
 
-    private static void SplitMenuPath(string menuPath, out string path, out string name)
+    private static void SplitNodePath(string nodePath, out string path, out string name)
     {
-      menuPath = menuPath.Trim('/');
-      int length = menuPath.LastIndexOf('/');
+      nodePath = nodePath.Trim('/');
+      int length = nodePath.LastIndexOf('/');
       if (length == -1)
       {
         path = string.Empty;
-        name = menuPath;
+        name = nodePath;
       }
       else
       {
-        path = menuPath.Substring(0, length);
-        name = menuPath.Substring(length + 1);
+        path = nodePath.Substring(0, length);
+        name = nodePath.Substring(length + 1);
       }
     }
 
-    private void AddMenuItemAtPath(
+    private void AddNodeAtPath(
       string path,
-      MenuItem menuItem)
+      SelectionNode node)
     {
-      MenuItem menuItem1 = _root;
+      SelectionNode node1 = _root;
       if (!string.IsNullOrEmpty(path))
       {
         if (path[0] == '/' || path[path.Length - 1] == '/')
@@ -444,47 +448,47 @@
             name = path.Substring(startIndex, num - startIndex);
           }
 
-          List<MenuItem> childMenuItems = menuItem1.ChildMenuItems;
-          MenuItem menuItem2 = null;
-          for (int index = childMenuItems.Count - 1; index >= 0; --index)
+          List<SelectionNode> childNodes = node1.ChildNodes;
+          SelectionNode node2 = null;
+          for (int index = childNodes.Count - 1; index >= 0; --index)
           {
-            if (childMenuItems[index].Name != name)
+            if (childNodes[index].Name != name)
               continue;
 
-            menuItem2 = childMenuItems[index];
+            node2 = childNodes[index];
             break;
           }
 
-          if (menuItem2 == null)
+          if (node2 == null)
           {
-            menuItem2 = new MenuItem(this, name, null);
-            menuItem1.ChildMenuItems.Add(menuItem2);
+            node2 = new SelectionNode(this, name, null);
+            node1.ChildNodes.Add(node2);
           }
 
-          menuItem1 = menuItem2;
+          node1 = node2;
           startIndex = num + 1;
         }
         while (num != path.Length - 1);
       }
 
-      List<MenuItem> childMenuItems1 = menuItem1.ChildMenuItems;
-      MenuItem menuItem3 = null;
-      for (int index = childMenuItems1.Count - 1; index >= 0; --index)
+      List<SelectionNode> childNodes1 = node1.ChildNodes;
+      SelectionNode node3 = null;
+      for (int index = childNodes1.Count - 1; index >= 0; --index)
       {
-        if (childMenuItems1[index].Name != menuItem.Name)
+        if (childNodes1[index].Name != node.Name)
           continue;
 
-        menuItem3 = childMenuItems1[index];
+        node3 = childNodes1[index];
         break;
       }
 
-      if (menuItem3 != null)
+      if (node3 != null)
       {
-        menuItem1.ChildMenuItems.Remove(menuItem3);
-        menuItem.ChildMenuItems.AddRange(menuItem3.ChildMenuItems);
+        node1.ChildNodes.Remove(node3);
+        node.ChildNodes.AddRange(node3.ChildNodes);
       }
 
-      menuItem1.ChildMenuItems.Add(menuItem);
+      node1.ChildNodes.Add(node);
     }
   }
 }

@@ -1,8 +1,6 @@
 ﻿namespace TypeReferences.Editor.Odin
 {
   using System;
-  using System.Collections.Generic;
-  using System.Linq;
   using Sirenix.OdinInspector.Editor;
   using Sirenix.Serialization;
   using Sirenix.Utilities;
@@ -34,7 +32,30 @@
     private bool _updatedEditorOnce;
     private int _framesSinceFirstUpdate;
 
-    private MenuTree _selectionTree;
+    private SelectionTree _selectionTree;
+
+    public static void Create(SelectionTree selectionTree, float windowHeight)
+    {
+      DropdownWindow window = CreateEditorWindow();
+      window._selectionTree = selectionTree;
+
+      window._selectionTree.SelectionChanged += (Action) (() => { window.Close(); });
+
+      float windowWidth = CalculateOptimalWidth(selectionTree);
+      if (windowWidth == 0f)
+        windowWidth = 400f;
+
+      if (windowHeight == 0f)
+      {
+        window._preventContentFromExpanding = true;
+        window.SetupAutomaticHeightAdjustment();
+      }
+
+      var windowPosition = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
+      var windowSize = new Vector2(windowWidth, windowHeight);
+      var windowArea = new Rect(windowPosition, windowSize);
+      window.ShowAsDropDown(windowArea, windowSize);
+    }
 
     private void SetupAutomaticHeightAdjustment()
     {
@@ -77,47 +98,10 @@
       position = _positionUponCreation;
     }
 
-    public static void Create(SortedSet<TypeItem> collection, Type selectedType, bool expandAllMenuItems,
-      Action<Type> onTypeSelected, int dropdownHeight)
+    private static int CalculateOptimalWidth(SelectionTree tree)
     {
-      DropdownWindow window = CreateEditorWindow();
-
-      window._selectionTree = new MenuTree(collection, selectedType, onTypeSelected);
-
-      if (expandAllMenuItems)
-        window._selectionTree.OpenAllFolders();
-
-      int dropdownWidth = CalculateOptimalWidth(collection);
-      var windowSize = new Vector2(dropdownWidth, dropdownHeight);
-      var windowArea = new Rect(Event.current.mousePosition, windowSize);
-
-      window._selectionTree.SelectionChanged += (Action) (() =>
-      {
-        window.Close();
-      });
-
-      if (windowArea.width == 0f)
-        windowArea.width = 400f;
-
-      windowArea.position = GUIUtility.GUIToScreenPoint(windowArea.position);
-
-      if (windowArea.height == 0f)
-      {
-        window.ShowAsDropDown(windowArea, new Vector2(windowArea.width, 10f));
-        window._preventContentFromExpanding = true;
-        window.SetupAutomaticHeightAdjustment();
-      }
-      else
-      {
-        window.ShowAsDropDown(windowArea, windowArea.size);
-      }
-    }
-
-    private static int CalculateOptimalWidth(SortedSet<TypeItem> collection)
-    {
-      var itemTextValues = collection.Select(item => item.Name);
       var style = OdinMenuStyle.TreeViewStyle.DefaultLabelStyle;
-      return PopupHelper.CalculatePopupWidth(itemTextValues, style, false); // TODO: Make CalculatePopupWidth accept less variables
+      return PopupHelper.CalculatePopupWidth(tree.SelectionPaths, style, false); // TODO: Make CalculatePopupWidth accept less variables
     }
 
     private static DropdownWindow CreateEditorWindow()

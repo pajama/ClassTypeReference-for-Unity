@@ -21,9 +21,12 @@
         public void Draw(Action<Type> onTypeSelected)
         {
             var dropdownItems = GetDropdownItems();
-            int dropdownHeight = _attribute.DropdownHeight;
-            DropdownWindow.Create(dropdownItems, _selectedType, _attribute.ExpandAllMenuItems, onTypeSelected,
-                dropdownHeight);
+            var selectionTree = new SelectionTree(dropdownItems, _selectedType, onTypeSelected);
+
+            if (_attribute.ExpandAllFolders)
+                selectionTree.ExpandAllFolders();
+
+            DropdownWindow.Create(selectionTree, _attribute.DropdownHeight);
         }
 
         private SortedSet<TypeItem> GetDropdownItems()

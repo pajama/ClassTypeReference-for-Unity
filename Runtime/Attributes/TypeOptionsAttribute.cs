@@ -53,7 +53,7 @@
         /// <summary>
         /// If the dropdown renders a tree-view, then setting this to true will ensure everything is expanded by default.
         /// </summary>
-        public bool ExpandAllMenuItems { get; set; }
+        public bool ExpandAllFolders { get; set; }
 
         /// <summary>
         /// Determines whether the specified <see cref="Type"/> matches requirements set in the attribute.
