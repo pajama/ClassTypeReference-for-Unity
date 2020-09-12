@@ -3,7 +3,6 @@
   using System;
   using System.Collections.Generic;
   using System.Linq;
-  using Sirenix.OdinInspector.Editor;
   using Sirenix.Utilities;
   using Sirenix.Utilities.Editor;
   using UnityEditor;
@@ -48,8 +47,6 @@
       get => ChildNodes.Count != 0 && _isToggled;
       set => _isToggled = value;
     }
-
-    private static OdinMenuStyle Style => OdinMenuStyle.TreeViewStyle;
 
     private bool IsSelected => _parentTree.SelectedNode == this;
 
@@ -120,7 +117,7 @@
 
     private void Draw(int indentLevel, Rect visibleRect)
     {
-      Rect rect1 = GUILayoutUtility.GetRect(0.0f, Style.Height);
+      Rect rect1 = GUILayoutUtility.GetRect(0.0f, DropdownStyle.Height);
       Event currentEvent = SelectionTree.CurrentEvent;
       EventType currentEventType = SelectionTree.CurrentEventType;
       if (currentEventType == EventType.Layout)
@@ -135,41 +132,24 @@
 
       if (currentEventType == EventType.Repaint)
       {
-        _labelRect = _rect.AddXMin(Style.Offset + indentLevel * Style.IndentAmount);
+        _labelRect = _rect.AddXMin(DropdownStyle.GlobalOffset + indentLevel * DropdownStyle.IndentWidth);
         bool isSelected = IsSelected;
         if (isSelected)
         {
-          if (SelectionTree.ActiveSelectionTree == _parentTree)
-          {
-            EditorGUI.DrawRect(
-              _rect,
-              EditorGUIUtility.isProSkin ? Style.SelectedColorDarkSkin : Style.SelectedColorLightSkin);
-          }
-          else if (EditorGUIUtility.isProSkin)
-          {
-            EditorGUI.DrawRect(_rect, Style.SelectedInactiveColorDarkSkin);
-          }
-          else
-          {
-            EditorGUI.DrawRect(_rect, Style.SelectedInactiveColorLightSkin);
-          }
+          EditorGUI.DrawRect(
+            _rect,
+            SelectionTree.ActiveSelectionTree == _parentTree
+              ? DropdownStyle.SelectedColor
+              : DropdownStyle.SelectedInactiveColor);
         }
 
         if (!isSelected && _rect.Contains(currentEvent.mousePosition))
           EditorGUI.DrawRect(_rect, MouseOverColor);
-        if (ChildNodes.Count > 0 && !_parentTree.DrawInSearchMode && Style.DrawFoldoutTriangle)
+        if (ChildNodes.Count > 0 && !_parentTree.DrawInSearchMode)
         {
           EditorIcon editorIcon = Toggled ? EditorIcons.TriangleDown : EditorIcons.TriangleRight;
-          if (Style.AlignTriangleLeft)
-          {
-            _triangleRect = _labelRect.AlignLeft(Style.TriangleSize).AlignMiddle(Style.TriangleSize);
-            _triangleRect.x -= Style.TriangleSize - Style.TrianglePadding;
-          }
-          else
-          {
-            _triangleRect = _rect.AlignRight(Style.TriangleSize).AlignMiddle(Style.TriangleSize);
-            _triangleRect.x -= Style.TrianglePadding;
-          }
+          _triangleRect = _labelRect.AlignLeft(DropdownStyle.TriangleSize).AlignMiddle(DropdownStyle.TriangleSize);
+          _triangleRect.x -= DropdownStyle.TriangleSize;
 
           if (currentEventType == EventType.Repaint)
           {
@@ -197,28 +177,21 @@
           }
         }
 
-        GUIStyle style = isSelected ? Style.SelectedLabelStyle : Style.DefaultLabelStyle;
-        _labelRect = _labelRect.AlignMiddle(16f).AddY(Style.LabelVerticalOffset);
+        GUIStyle style = isSelected ? DropdownStyle.SelectedLabelStyle : DropdownStyle.DefaultLabelStyle;
+        _labelRect = _labelRect.AlignMiddle(16f);
         GUI.Label(_labelRect, Name, style);
-        if (Style.Borders)
+        bool flag = true;
+        if (isSelected || _previousNodeWasSelected)
         {
-          float num = Style.BorderPadding;
-          bool flag = true;
-          if (isSelected || _previousNodeWasSelected)
-          {
-            num = 0.0f;
-            if (!EditorGUIUtility.isProSkin)
-              flag = false;
-          }
+          if (!EditorGUIUtility.isProSkin)
+            flag = false;
+        }
 
-          _previousNodeWasSelected = isSelected;
-          if (flag)
-          {
-            Rect rect2 = _rect;
-            rect2.x += num;
-            rect2.width -= num * 2f;
-            SirenixEditorGUI.DrawHorizontalLineSeperator(rect2.x, rect2.y, rect2.width, Style.BorderAlpha);
-          }
+        _previousNodeWasSelected = isSelected;
+        if (flag)
+        {
+          Rect rect2 = _rect;
+          SirenixEditorGUI.DrawHorizontalLineSeperator(rect2.x, rect2.y, rect2.width, DropdownStyle.BorderAlpha);
         }
       }
 

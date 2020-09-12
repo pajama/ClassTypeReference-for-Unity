@@ -34,46 +34,50 @@
 
     private SelectionTree _selectionTree;
 
-    public static void Create(SelectionTree selectionTree, float windowHeight)
+    public static void Create(SelectionTree selectionTree, int windowHeight)
     {
-      DropdownWindow window = CreateEditorWindow();
-      window._selectionTree = selectionTree;
+      var window = CreateInstance<DropdownWindow>();
+      window.OnCreate(selectionTree, windowHeight);
+    }
 
-      window._selectionTree.SelectionChanged += (Action) (() => { window.Close(); });
+    /// <summary>
+    /// This is basically a constructor. Since ScriptableObjects cannot have constructors, this one is called from a factory method.
+    /// </summary>
+    /// <param name="selectionTree">Tree that contains the dropdown items to show.</param>
+    /// <param name="windowHeight">Height of the window. If set to 0, it will be auto-adjusted.</param>
+    private void OnCreate(SelectionTree selectionTree, float windowHeight)
+    {
+      ResetControl();
+      _selectionTree = selectionTree;
+      _selectionTree.SelectionChanged += Close;
 
-      float windowWidth = CalculateOptimalWidth(selectionTree);
-      if (windowWidth == 0f)
-        windowWidth = 400f;
+      float windowWidth = CalculateOptimalWidth();
 
       if (windowHeight == 0f)
       {
-        window._preventContentFromExpanding = true;
-        window.SetupAutomaticHeightAdjustment();
+        _preventContentFromExpanding = true;
+        EditorApplication.update += AdjustHeightIfNeeded;
       }
 
       var windowPosition = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
       var windowSize = new Vector2(windowWidth, windowHeight);
       var windowArea = new Rect(windowPosition, windowSize);
-      window.ShowAsDropDown(windowArea, windowSize);
+      ShowAsDropDown(windowArea, windowSize);
     }
 
-    private void SetupAutomaticHeightAdjustment()
+    private static void ResetControl()
     {
-      void OnApplicationUpdate()
-      {
-        bool windowClosed = this == null;
-        if (windowClosed)
-        {
-          EditorApplication.update -= OnApplicationUpdate;
-        }
-        else
-        {
-          AdjustHeightIfNeeded();
-        }
-      }
-
-      EditorApplication.update += OnApplicationUpdate;
+      GUIUtility.hotControl = 0;
+      GUIUtility.keyboardControl = 0;
     }
+
+    private float CalculateOptimalWidth()
+    {
+      var style = DropdownStyle.DefaultLabelStyle;
+      float windowWidth = PopupHelper.CalculatePopupWidth(_selectionTree.SelectionPaths, style, false); // TODO: Make CalculatePopupWidth accept less variables
+      return windowWidth == 0f ? 400f : windowWidth;
+    }
+
 
     private void AdjustHeightIfNeeded()
     {
@@ -96,22 +100,6 @@
         _positionUponCreation.y -= _positionUponCreation.yMax - screenHeight;
 
       position = _positionUponCreation;
-    }
-
-    private static int CalculateOptimalWidth(SelectionTree tree)
-    {
-      var style = OdinMenuStyle.TreeViewStyle.DefaultLabelStyle;
-      return PopupHelper.CalculatePopupWidth(tree.SelectionPaths, style, false); // TODO: Make CalculatePopupWidth accept less variables
-    }
-
-    private static DropdownWindow CreateEditorWindow()
-    {
-      var window = CreateInstance<DropdownWindow>();
-      GUIUtility.hotControl = 0;
-      GUIUtility.keyboardControl = 0;
-      window.position = GUIHelper.GetEditorWindowRect().AlignCenter(600f, 600f);
-      EditorUtility.SetDirty(window);
-      return window;
     }
 
     void ISerializationCallbackReceiver.OnAfterDeserialize()
@@ -252,6 +240,8 @@
     {
       Selection.selectionChanged -= SelectionChanged;
       Selection.selectionChanged -= SelectionChanged;
+
+      EditorApplication.update -= AdjustHeightIfNeeded;
     }
   }
 }
