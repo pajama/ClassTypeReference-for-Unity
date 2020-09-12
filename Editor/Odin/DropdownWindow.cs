@@ -1,7 +1,6 @@
 ﻿namespace TypeReferences.Editor.Odin
 {
   using System;
-  using Sirenix.OdinInspector.Editor;
   using Sirenix.Serialization;
   using Sirenix.Utilities;
   using Sirenix.Utilities.Editor;
@@ -15,29 +14,32 @@
 
     private static bool _hasUpdatedOdinEditors;
 
-    private readonly EditorTimeHelper _timeHelper = new EditorTimeHelper();
-
     [SerializeField] private SerializationData serializedInstance;
 
     private GUIStyle _marginStyle;
     private EditorWindow _mouseDownWindow;
+    private SelectionTree _selectionTree;
     private Vector2 _scrollPos;
-    private Vector2 _contentSize;
-    private Rect _positionUponCreation;
+    private float _contentHeight;
+    private Rect _positionToAdjust;
     private int _mouseDownKeyboardControl;
     private int _mouseDownId;
     private int _drawCountWarmup;
     private bool _isInitialized;
-    private bool _preventContentFromExpanding;
+    private PreventExpandingHeight _preventExpandingHeight;
     private bool _updatedEditorOnce;
     private int _framesSinceFirstUpdate;
-
-    private SelectionTree _selectionTree;
 
     public static void Create(SelectionTree selectionTree, int windowHeight)
     {
       var window = CreateInstance<DropdownWindow>();
       window.OnCreate(selectionTree, windowHeight);
+    }
+
+    private static void ResetControl()
+    {
+      GUIUtility.hotControl = 0;
+      GUIUtility.keyboardControl = 0;
     }
 
     /// <summary>
@@ -55,20 +57,18 @@
 
       if (windowHeight == 0f)
       {
-        _preventContentFromExpanding = true;
+        _preventExpandingHeight = new PreventExpandingHeight(true);
         EditorApplication.update += AdjustHeightIfNeeded;
+      }
+      else
+      {
+        _preventExpandingHeight = new PreventExpandingHeight(false);
       }
 
       var windowPosition = GUIUtility.GUIToScreenPoint(Event.current.mousePosition);
       var windowSize = new Vector2(windowWidth, windowHeight);
       var windowArea = new Rect(windowPosition, windowSize);
       ShowAsDropDown(windowArea, windowSize);
-    }
-
-    private static void ResetControl()
-    {
-      GUIUtility.hotControl = 0;
-      GUIUtility.keyboardControl = 0;
     }
 
     private float CalculateOptimalWidth()
@@ -78,28 +78,27 @@
       return windowWidth == 0f ? 400f : windowWidth;
     }
 
-
-    private void AdjustHeightIfNeeded()
+    private void AdjustHeightIfNeeded() // TODO: think of how it can be merged with OnGUI
     {
       // two frames are needed to move the window to the correct place from the top left corner
       if (_framesSinceFirstUpdate < 2)
       {
         _framesSinceFirstUpdate++;
-        _positionUponCreation = position;
+        _positionToAdjust = position;
         return;
       }
 
-      if (_contentSize.y.ApproximatelyEquals(_positionUponCreation.height))
+      if (_contentHeight.ApproximatelyEquals(_positionToAdjust.height))
         return;
 
-      _positionUponCreation.height = Math.Min(_contentSize.y, MaxWindowHeight);
-      minSize = new Vector2(minSize.x, _positionUponCreation.height);
-      maxSize = new Vector2(maxSize.x, _positionUponCreation.height);
+      _positionToAdjust.height = Math.Min(_contentHeight, MaxWindowHeight);
+      minSize = new Vector2(minSize.x, _positionToAdjust.height);
+      maxSize = new Vector2(maxSize.x, _positionToAdjust.height);
       float screenHeight = Screen.currentResolution.height - 40f;
-      if (_positionUponCreation.yMax >= screenHeight)
-        _positionUponCreation.y -= _positionUponCreation.yMax - screenHeight;
+      if (_positionToAdjust.yMax >= screenHeight)
+        _positionToAdjust.y -= _positionToAdjust.yMax - screenHeight;
 
-      position = _positionUponCreation;
+      position = _positionToAdjust;
     }
 
     void ISerializationCallbackReceiver.OnAfterDeserialize()
@@ -114,93 +113,76 @@
 
     protected void OnGUI()
     {
-      EditorTimeHelper time = EditorTimeHelper.Time;
-      EditorTimeHelper.Time = _timeHelper;
-      EditorTimeHelper.Time.Update();
-      try
+      if (_preventExpandingHeight)
+        GUILayout.BeginArea(new Rect(0.0f, 0.0f, position.width, MaxWindowHeight));
+
+      if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
       {
-        if (_preventContentFromExpanding)
-          GUILayout.BeginArea(new Rect(0.0f, 0.0f, position.width, MaxWindowHeight));
-
-        if (Event.current.type == EventType.KeyDown && Event.current.keyCode == KeyCode.Escape)
-        {
-          Close();
-          Event.current.Use();
-        }
-
-        if (!EditorGUIUtility.isProSkin)
-        {
-          SirenixEditorGUI.DrawSolidRect(new Rect(0.0f, 0.0f, position.width, position.height), SirenixGUIStyles.MenuBackgroundColor);
-        }
-
-        if (GUIHelper.CurrentWindow != null)
-          GUIHelper.CurrentWindow.Repaint();
-
-        if (!_hasUpdatedOdinEditors)
-        {
-          // GlobalConfig<InspectorConfig>.Instance.EnsureEditorsHaveBeenUpdated(); // TODO: check if it can be removed safely
-          _hasUpdatedOdinEditors = true;
-        }
-
-        InitializeIfNeeded();
-        GUIStyle guiStyle = _marginStyle ?? new GUIStyle { padding = new RectOffset() };
-        _marginStyle = guiStyle;
-        if (Event.current.type == EventType.Layout)
-        {
-          _marginStyle.padding.left = 0;
-          _marginStyle.padding.right = 0;
-          _marginStyle.padding.top = 0;
-          _marginStyle.padding.bottom = 0;
-          UpdateEditor();
-        }
-
-        EventType type = Event.current.type;
-        if (Event.current.type == EventType.MouseDown)
-        {
-          _mouseDownId = GUIUtility.hotControl;
-          _mouseDownKeyboardControl = GUIUtility.keyboardControl;
-          _mouseDownWindow = focusedWindow;
-        }
-
-        _scrollPos = EditorGUILayout.BeginScrollView(_scrollPos);
-        Vector2 vector2 = _preventContentFromExpanding ? EditorGUILayout.BeginVertical(GUILayoutOptions.ExpandHeight(false)).size : EditorGUILayout.BeginVertical().size;
-        if (_contentSize == Vector2.zero || Event.current.type == EventType.Repaint)
-          _contentSize = vector2;
-        GUIHelper.PushHierarchyMode(false);
-        GUILayout.BeginVertical(_marginStyle);
-        _selectionTree.Draw();
-        GUILayout.EndVertical();
-        GUIHelper.PopHierarchyMode();
-        EditorGUILayout.EndVertical();
-        EditorGUILayout.EndScrollView();
-
-        SirenixEditorGUI.DrawBorders(new Rect(0.0f, 0.0f, position.width, position.height), 1);
-
-        if (Event.current.type != type)
-          _mouseDownId = -2;
-        if (Event.current.type == EventType.MouseUp && GUIUtility.hotControl == _mouseDownId && (focusedWindow == _mouseDownWindow && GUIUtility.keyboardControl == _mouseDownKeyboardControl))
-        {
-          GUIHelper.RemoveFocusControl();
-          GUI.FocusControl(null);
-        }
-
-        if (_drawCountWarmup < 10)
-        {
-          Repaint();
-          if (Event.current.type == EventType.Repaint)
-            ++_drawCountWarmup;
-        }
-
-        if (Event.current.isMouse || Event.current.type == EventType.Used)
-          Repaint();
-        this.RepaintIfRequested();
-        if (_preventContentFromExpanding)
-          GUILayout.EndArea();
+        Close();
+        Event.current.Use();
       }
-      finally
+
+      if (!EditorGUIUtility.isProSkin)
       {
-        EditorTimeHelper.Time = time;
+        SirenixEditorGUI.DrawSolidRect(new Rect(0.0f, 0.0f, position.width, position.height), SirenixGUIStyles.MenuBackgroundColor);
       }
+
+      if (GUIHelper.CurrentWindow != null)
+        GUIHelper.CurrentWindow.Repaint();
+
+      InitializeIfNeeded();
+      GUIStyle guiStyle = _marginStyle ?? new GUIStyle { padding = new RectOffset() };
+      _marginStyle = guiStyle;
+      if (Event.current.type == EventType.Layout)
+      {
+        _marginStyle.padding = new RectOffset(0, 0, 0, 0);
+        UpdateEditor();
+      }
+
+      EventType type = Event.current.type;
+      if (Event.current.type == EventType.MouseDown)
+      {
+        _mouseDownId = GUIUtility.hotControl;
+        _mouseDownKeyboardControl = GUIUtility.keyboardControl;
+        _mouseDownWindow = focusedWindow;
+      }
+
+      _scrollPos = EditorGUILayout.BeginScrollView(_scrollPos);
+
+      float contentHeight = EditorGUILayout.BeginVertical(_preventExpandingHeight).height;
+      if (_contentHeight == 0f || Event.current.type == EventType.Repaint)
+        _contentHeight = contentHeight;
+
+      GUIHelper.PushHierarchyMode(false);
+      GUILayout.BeginVertical(_marginStyle);
+      _selectionTree.Draw();
+      GUILayout.EndVertical();
+      GUIHelper.PopHierarchyMode();
+      EditorGUILayout.EndVertical();
+      EditorGUILayout.EndScrollView();
+
+      SirenixEditorGUI.DrawBorders(new Rect(0.0f, 0.0f, position.width, position.height), 1);
+
+      if (Event.current.type != type)
+        _mouseDownId = -2;
+      if (Event.current.type == EventType.MouseUp && GUIUtility.hotControl == _mouseDownId && (focusedWindow == _mouseDownWindow && GUIUtility.keyboardControl == _mouseDownKeyboardControl))
+      {
+        GUIHelper.RemoveFocusControl();
+        GUI.FocusControl(null);
+      }
+
+      if (_drawCountWarmup < 10)
+      {
+        Repaint();
+        if (Event.current.type == EventType.Repaint)
+          ++_drawCountWarmup;
+      }
+
+      if (Event.current.isMouse || Event.current.type == EventType.Used)
+        Repaint();
+      this.RepaintIfRequested();
+      if (_preventExpandingHeight)
+        GUILayout.EndArea();
     }
 
     private void UpdateEditor()
