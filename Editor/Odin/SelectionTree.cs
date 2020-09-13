@@ -13,9 +13,6 @@
   [Serializable]
   public class SelectionTree : IEnumerable
   {
-    public const int SearchToolbarHeight = 22;
-
-    public static SelectionTree ActiveSelectionTree;
     public static Event CurrentEvent;
     public static EventType CurrentEventType;
 
@@ -56,7 +53,6 @@
       _selectionPaths = items.Select(item => item.Name).ToArray();
       SetupAutoScroll();
       _searchFieldControlName = Guid.NewGuid().ToString();
-      ActiveSelectionTree = this;
       BuildSelectionTree(items);
       SetSelection(items, selectedType);
     }
@@ -114,7 +110,7 @@
 
     public void DrawSearchToolbar(GUIStyle toolbarStyle = null)
     {
-      Rect rect1 = GUILayoutUtility.GetRect(0.0f, SearchToolbarHeight, GUILayoutOptions.ExpandWidth());
+      Rect rect1 = GUILayoutUtility.GetRect(0.0f, DropdownStyle.SearchToolbarHeight, GUILayoutOptions.ExpandWidth());
       if (Event.current.type == EventType.Repaint)
         (toolbarStyle ?? SirenixGUIStyles.ToolbarBackground).Draw(rect1, GUIContent.none, 0);
       Rect rect2 = rect1.HorizontalPadding(5f).AlignMiddle(16f);
@@ -166,7 +162,7 @@
       Rect rect = EditorGUILayout.BeginVertical();
       EditorGUI.DrawRect(rect, SirenixGUIStyles.DarkEditorBackground);
       GUILayout.Space(1f);
-      SirenixEditorGUI.BeginHorizontalToolbar(SearchToolbarHeight);
+      SirenixEditorGUI.BeginHorizontalToolbar(DropdownStyle.SearchToolbarHeight);
       DrawSearchToolbar(GUIStyle.none);
       EditorGUI.DrawRect(GUILayoutUtility.GetLastRect().AlignLeft(1f), SirenixGUIStyles.BorderColor);
       SirenixEditorGUI.EndHorizontalToolbar();
@@ -340,28 +336,20 @@
           _currWindowHasFocus = GUIHelper.CurrentWindowHasFocus;
           if (_currWindowHasFocus && _regainFocusWhenWindowFocus)
           {
-            if (!_preventAutoFocus)
-              ActiveSelectionTree = this;
             _regainFocusWhenWindowFocus = false;
           }
         }
-        if (!_currWindowHasFocus && ActiveSelectionTree == this)
-          ActiveSelectionTree = null;
-        if (_currWindowHasFocus)
-          _regainFocusWhenWindowFocus = ActiveSelectionTree == this;
-        if (_currWindowHasFocus && ActiveSelectionTree == null)
-          ActiveSelectionTree = this;
       }
+
       SelectionTreeActivationZone(outerRect);
     }
 
     private void SelectionTreeActivationZone(Rect rect)
     {
-      if (ActiveSelectionTree == this || Event.current.rawType != EventType.MouseDown || (!rect.Contains(Event.current.mousePosition) || !GUIHelper.CurrentWindowHasFocus))
+      if (Event.current.rawType != EventType.MouseDown || (!rect.Contains(Event.current.mousePosition) || !GUIHelper.CurrentWindowHasFocus))
         return;
       _regainSearchFieldFocus = true;
       _preventAutoFocus = true;
-      ActiveSelectionTree = this;
       UnityEditorEventUtility.EditorApplication_delayCall += (Action) (() => _preventAutoFocus = false);
       GUIHelper.RequestRepaint();
     }
@@ -369,30 +357,24 @@
     private string DrawSearchField(Rect rect, string searchTerm)
     {
       bool flag1 = GUI.GetNameOfFocusedControl() == _searchFieldControlName;
-      if (_hadSearchFieldFocus != flag1)
-      {
-        if (flag1)
-          ActiveSelectionTree = this;
-        _hadSearchFieldFocus = flag1;
-      }
+      _hadSearchFieldFocus = flag1;
 
       bool flag2 = flag1 && (Event.current.keyCode == KeyCode.DownArrow || Event.current.keyCode == KeyCode.UpArrow || (Event.current.keyCode == KeyCode.LeftArrow || Event.current.keyCode == KeyCode.RightArrow) || Event.current.keyCode == KeyCode.Return);
       if (flag2)
         GUIHelper.PushEventType(Event.current.type);
-      searchTerm = SirenixEditorGUI.SearchField(rect, searchTerm, _regainSearchFieldFocus && ActiveSelectionTree == this, _searchFieldControlName);
+      searchTerm = SirenixEditorGUI.SearchField(rect, searchTerm, _regainSearchFieldFocus, _searchFieldControlName);
       if (_regainSearchFieldFocus && Event.current.type == EventType.Layout)
         _regainSearchFieldFocus = false;
       if (flag2)
       {
         GUIHelper.PopEventType();
-        if (ActiveSelectionTree == this)
-          _regainSearchFieldFocus = true;
+        _regainSearchFieldFocus = true;
       }
 
       if (_forceRegainFocusCounter >= 20)
         return searchTerm;
 
-      if (_forceRegainFocusCounter < 4 && ActiveSelectionTree == this)
+      if (_forceRegainFocusCounter < 4)
         _regainSearchFieldFocus = true;
       GUIHelper.RequestRepaint();
       HandleUtility.Repaint();

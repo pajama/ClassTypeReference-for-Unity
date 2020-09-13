@@ -138,9 +138,7 @@
         {
           EditorGUI.DrawRect(
             _rect,
-            SelectionTree.ActiveSelectionTree == _parentTree
-              ? DropdownStyle.SelectedColor
-              : DropdownStyle.SelectedInactiveColor);
+            DropdownStyle.SelectedColor);
         }
 
         if (!isSelected && _rect.Contains(currentEvent.mousePosition))

@@ -11,6 +11,7 @@
     public const float TriangleSize = 16f;
     public const float BorderAlpha = 0.323f;
     public const int MaxWindowHeight = 600;
+    public const int SearchToolbarHeight = 22;
 
     public static readonly GUIStyle DefaultLabelStyle = new GUIStyle(EditorStyles.label)
     {
