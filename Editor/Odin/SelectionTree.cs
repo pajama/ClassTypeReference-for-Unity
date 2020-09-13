@@ -4,13 +4,11 @@
   using System.Collections;
   using System.Collections.Generic;
   using System.Linq;
-  using Sirenix.OdinInspector.Editor;
   using Sirenix.Utilities;
   using Sirenix.Utilities.Editor;
   using UnityEditor;
   using UnityEngine;
 
-  [Serializable]
   public class SelectionTree : IEnumerable
   {
     public static Event CurrentEvent;
@@ -18,29 +16,22 @@
 
     public readonly List<SelectionNode> FlatTree = new List<SelectionNode>(); // needed to show search results
 
-    private static bool _preventAutoFocus;
-
     private readonly GUIFrameCounter _frameCounter = new GUIFrameCounter();
     private readonly EditorTimeHelper _timeHelper = new EditorTimeHelper(); // For some reason, it should be used to fold out selection tree
     private readonly SelectionNode _root;
     private readonly string _searchFieldControlName;
 
-    [SerializeField] private Vector2 _scrollPos;
-    [SerializeField] private string _searchTerm = string.Empty;
+    private Vector2 _scrollPos;
+    private string _searchTerm = string.Empty;
     private SelectionNode _selectedNode;
     private SelectionNode _scrollToWhenReady;
     private Rect _outerScrollViewRect;
     private Rect _innerScrollViewRect;
     private int _hideScrollbarsWhileContentIsExpanding;
-    private int _forceRegainFocusCounter;
     private bool _isFirstFrame = true;
     private bool _hasRepaintedCurrentSearchResult = true;
-    private bool _regainSearchFieldFocus;
-    private bool _hadSearchFieldFocus;
     private bool _requestRepaint;
     private bool _scrollToCenter;
-    private bool _regainFocusWhenWindowFocus;
-    private bool _currWindowHasFocus;
     private Action<Type> _onTypeSelected;
     private string[] _selectionPaths;
 
@@ -195,7 +186,7 @@
         }
 
         Rect outerRect = EditorGUILayout.BeginVertical();
-        HandleActiveSelectionTreeState(outerRect);
+        SelectionTreeActivationZone(outerRect);
         if (Event.current.type == EventType.Repaint)
           _outerScrollViewRect = outerRect;
         _scrollPos = _hideScrollbarsWhileContentIsExpanding <= 0 ? EditorGUILayout.BeginScrollView(_scrollPos, GUILayoutOptions.ExpandHeight(false)) : EditorGUILayout.BeginScrollView(_scrollPos, GUIStyle.none, GUIStyle.none, GUILayoutOptions.ExpandHeight(false));
@@ -327,59 +318,30 @@
       }
     }
 
-    private void HandleActiveSelectionTreeState(Rect outerRect)
-    {
-      if (Event.current.type == EventType.Repaint)
-      {
-        if (_currWindowHasFocus != GUIHelper.CurrentWindowHasFocus)
-        {
-          _currWindowHasFocus = GUIHelper.CurrentWindowHasFocus;
-          if (_currWindowHasFocus && _regainFocusWhenWindowFocus)
-          {
-            _regainFocusWhenWindowFocus = false;
-          }
-        }
-      }
-
-      SelectionTreeActivationZone(outerRect);
-    }
-
     private void SelectionTreeActivationZone(Rect rect)
     {
       if (Event.current.rawType != EventType.MouseDown || (!rect.Contains(Event.current.mousePosition) || !GUIHelper.CurrentWindowHasFocus))
         return;
-      _regainSearchFieldFocus = true;
-      _preventAutoFocus = true;
-      UnityEditorEventUtility.EditorApplication_delayCall += (Action) (() => _preventAutoFocus = false);
+
       GUIHelper.RequestRepaint();
     }
 
     private string DrawSearchField(Rect rect, string searchTerm)
     {
       bool flag1 = GUI.GetNameOfFocusedControl() == _searchFieldControlName;
-      _hadSearchFieldFocus = flag1;
 
       bool flag2 = flag1 && (Event.current.keyCode == KeyCode.DownArrow || Event.current.keyCode == KeyCode.UpArrow || (Event.current.keyCode == KeyCode.LeftArrow || Event.current.keyCode == KeyCode.RightArrow) || Event.current.keyCode == KeyCode.Return);
       if (flag2)
         GUIHelper.PushEventType(Event.current.type);
-      searchTerm = SirenixEditorGUI.SearchField(rect, searchTerm, _regainSearchFieldFocus, _searchFieldControlName);
-      if (_regainSearchFieldFocus && Event.current.type == EventType.Layout)
-        _regainSearchFieldFocus = false;
+      searchTerm = SirenixEditorGUI.SearchField(rect, searchTerm, true, _searchFieldControlName);
       if (flag2)
       {
         GUIHelper.PopEventType();
-        _regainSearchFieldFocus = true;
       }
 
-      if (_forceRegainFocusCounter >= 20)
-        return searchTerm;
-
-      if (_forceRegainFocusCounter < 4)
-        _regainSearchFieldFocus = true;
       GUIHelper.RequestRepaint();
       HandleUtility.Repaint();
-      if (Event.current.type == EventType.Repaint)
-        ++_forceRegainFocusCounter;
+
       return searchTerm;
     }
 
