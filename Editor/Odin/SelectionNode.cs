@@ -87,13 +87,11 @@
       _parentTree.SelectedNode = this;
     }
 
-    public IEnumerable<SelectionNode> GetChildNodesRecursive(
-      bool includeSelf)
+    public IEnumerable<SelectionNode> GetChildNodesRecursive()
     {
-      SelectionNode self = this;
-      if (includeSelf)
-        yield return self;
-      foreach (SelectionNode childNode in self.ChildNodes.SelectMany(node => node.GetChildNodesRecursive(true)))
+      if (_parentNode != null)
+        yield return this;
+      foreach (SelectionNode childNode in ChildNodes.SelectMany(node => node.GetChildNodesRecursive()))
         yield return childNode;
     }
 

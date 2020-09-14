@@ -3,7 +3,6 @@
   using System;
   using System.Collections.Generic;
   using System.Linq;
-  using Sirenix.Utilities;
   using Sirenix.Utilities.Editor;
   using Test.Editor.OdinAttributeDrawers;
   using UnityEditor;
@@ -60,7 +59,8 @@
 
     public void ExpandAllFolders()
     {
-      _root.GetChildNodesRecursive(false).ForEach(item => item.Expanded = true);
+      foreach (SelectionNode node in EnumerateTree())
+        node.Expanded = true;
     }
 
     public void Draw()
@@ -84,10 +84,7 @@
       });
     }
 
-    private IEnumerable<SelectionNode> EnumerateTree(bool includeRootNode = false)
-    {
-      return _root.GetChildNodesRecursive(includeRootNode);
-    }
+    private IEnumerable<SelectionNode> EnumerateTree() => _root.GetChildNodesRecursive();
 
     private void SetSelection(SortedSet<TypeItem> items, Type selectedType)
     {
@@ -110,7 +107,8 @@
 
     private void DrawSearchToolbar()
     {
-      Rect outerToolbarArea = GUILayoutUtility.GetRect(0.0f, DropdownStyle.SearchToolbarHeight, GUILayoutOptions.ExpandWidth());
+
+      Rect outerToolbarArea = GUILayoutUtility.GetRect(0.0f, DropdownStyle.SearchToolbarHeight, GUILayout.ExpandWidth(true));
       if (Event.current.type == EventType.Repaint)
         GUIStyle.none.Draw(outerToolbarArea, GUIContent.none, 0);
 
@@ -192,7 +190,9 @@
       SelectionTreeActivationZone(outerRect);
       if (Event.current.type == EventType.Repaint)
         _outerScrollViewRect = outerRect;
-      _scrollPos = _hideScrollbarsWhileContentIsExpanding <= 0 ? EditorGUILayout.BeginScrollView(_scrollPos, GUILayoutOptions.ExpandHeight(false)) : EditorGUILayout.BeginScrollView(_scrollPos, GUIStyle.none, GUIStyle.none, GUILayoutOptions.ExpandHeight(false));
+      _scrollPos = _hideScrollbarsWhileContentIsExpanding <= 0 ?
+        EditorGUILayout.BeginScrollView(_scrollPos, GUILayout.ExpandHeight(false)) :
+        EditorGUILayout.BeginScrollView(_scrollPos, GUIStyle.none, GUIStyle.none, GUILayout.ExpandHeight(false));
       Rect rect = EditorGUILayout.BeginVertical();
       if (_innerScrollViewRect.height == 0.0 || Event.current.type == EventType.Repaint)
       {
