@@ -6,23 +6,21 @@
 
     internal static class TypeNameFormatter
     {
-        public static string Format(Type type, Grouping grouping)
+        public static string Format(Type type, string fullTypeName, Grouping grouping)
         {
-            string name = type.FullName ?? string.Empty;
-
             switch (grouping)
             {
                 default:
-                    return name;
+                    return fullTypeName;
 
                 case Grouping.ByNamespace:
-                    return FormatByNamespace(name);
+                    return FormatByNamespace(fullTypeName);
 
                 case Grouping.ByNamespaceFlat:
-                    return FormatByNamespaceFlat(name);
+                    return FormatByNamespaceFlat(fullTypeName);
 
                 case Grouping.ByAddComponentMenu:
-                    return FormatByAddComponentMenu(type, name);
+                    return FormatByAddComponentMenu(type, fullTypeName);
             }
         }
 

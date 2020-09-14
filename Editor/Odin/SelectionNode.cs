@@ -22,42 +22,65 @@
 
     private readonly SelectionTree _parentTree;
 
-    private bool _isInitialized;
-    private bool _isToggled;
+    private bool _expanded;
     private SelectionNode _parentNode;
     private Rect _triangleRect;
     private Rect _labelRect;
     private Rect _rect;
     private bool _wasMouseDownEvent;
 
-    public SelectionNode(SelectionTree tree, string name, Type type)
+    private SelectionNode(string name, SelectionNode parentNode, SelectionTree parentTree, Type type, string fullTypeName)
     {
-      Assert.IsNotNull(tree);
       Assert.IsNotNull(name);
 
-      _parentTree = tree;
       Name = name;
+      _parentNode = parentNode;
+      _parentTree = parentTree;
       Type = type;
+      FullTypeName = fullTypeName;
+    }
+
+    /// <summary>Creates a root node.</summary>
+    /// <param name="parentTree"></param>
+    private SelectionNode(SelectionTree parentTree)
+    {
+      _parentNode = null;
+      _parentTree = parentTree;
+      Name = string.Empty;
+      Type = null;
+      FullTypeName = null;
+    }
+
+    public static SelectionNode CreateRoot(SelectionTree tree)
+    {
+      return new SelectionNode(tree);
+    }
+
+    public SelectionNode CreateChildItem(string name, Type type, string fullTypeName)
+    {
+      var child = new SelectionNode(name, this, _parentTree, type, fullTypeName);
+      AddChild(child);
+      return child;
+    }
+
+    public SelectionNode CreateChildFolder(string name)
+    {
+      var child = new SelectionNode(name, this, _parentTree, null, null);
+      AddChild(child);
+      return child;
     }
 
     public Rect Rect => _rect;
 
-    public bool Toggled
+    public string FullTypeName { get; }
+
+    public bool Expanded
     {
-      get => ChildNodes.Count != 0 && _isToggled;
-      set => _isToggled = value;
+      get => ChildNodes.Count != 0 && _expanded;
+      set => _expanded = value;
     }
 
     private bool IsSelected => _parentTree.SelectedNode == this;
-
-    private SelectionNode Parent
-    {
-      get
-      {
-        EnsureInitialized();
-        return _parentNode;
-      }
-    }
 
     public void Select()
     {
@@ -79,41 +102,59 @@
       bool includeRoot = false)
     {
       SelectionNode self = this;
-      if (includeSelf || self.Parent == null & includeRoot)
+      if (includeSelf || self._parentNode == null & includeRoot)
         yield return self;
 
-      if (self.Parent == null)
+      if (self._parentNode == null)
         yield break;
 
-      foreach (SelectionNode node in self.Parent.GetParentNodesRecursive(true, includeRoot))
+      foreach (SelectionNode node in self._parentNode.GetParentNodesRecursive(true, includeRoot))
         yield return node;
+    }
+
+    /// <summary>
+    /// Returns the direct child node with the matching name, or null if the matching node was not found.
+    /// </summary>
+    /// <remarks>
+    /// One of the usages of FindNode is to build the selection tree. When a new item is added, it is checked whether
+    /// its parent folder is already created. If the folder is created, it is usually the most recently created folder,
+    /// so the list is iterated backwards to give the result as quickly as possible.
+    /// </remarks>
+    /// <param name="name">Name of the node to find.</param>
+    /// <returns>Direct child node with the matching name or null.</returns>
+    public SelectionNode FindNode(string name)
+    {
+      SelectionNode foundNode = null;
+      for (int index = ChildNodes.Count - 1; index >= 0; --index)
+      {
+        if (ChildNodes[index].Name == name)
+        {
+          foundNode = ChildNodes[index];
+          break;
+        }
+      }
+
+      return foundNode;
     }
 
     public void DrawSelfAndChildren(int indentLevel, Rect visibleRect)
     {
       Draw(indentLevel, visibleRect);
-      if ( ! Toggled)
+      if ( ! Expanded)
         return;
 
       foreach (SelectionNode childItem in ChildNodes)
         childItem.DrawSelfAndChildren(indentLevel + 1, visibleRect);
     }
 
-    public void UpdateSelectionTreeRecursive(bool isRoot = false)
+    public bool IsVisible()
     {
-      _isInitialized = true;
-
-      foreach (SelectionNode childNode in ChildNodes)
-      {
-        childNode._parentNode = isRoot ? null : this;
-        childNode.UpdateSelectionTreeRecursive();
-      }
+      return _parentTree.DrawInSearchMode ?
+        _parentTree.SearchModeTree.Contains(this) :
+        ParentNodesBottomUp(false).All(x => x.Expanded);
     }
 
-    public bool _IsVisible()
-    {
-      return _parentTree.DrawInSearchMode ? _parentTree.FlatTree.Contains(this) : ParentNodesBottomUp(false).All(x => x.Toggled);
-    }
+    private void AddChild(SelectionNode childNode) => ChildNodes.Add(childNode);
 
     private void Draw(int indentLevel, Rect visibleRect)
     {
@@ -126,8 +167,7 @@
       if (currentEventType == EventType.Repaint || (currentEventType != EventType.Layout && _rect.width == 0.0))
         _rect = rect1;
 
-      if (_rect.y > 1000.0 && (_rect.y + (double) _rect.height < visibleRect.y ||
-                               _rect.y > visibleRect.y + (double) visibleRect.height))
+      if (_rect.y > 1000f && (_rect.y + _rect.height < visibleRect.y || _rect.y > visibleRect.y + visibleRect.height))
         return;
 
       if (currentEventType == EventType.Repaint)
@@ -140,12 +180,14 @@
             _rect,
             DropdownStyle.SelectedColor);
         }
-
-        if (!isSelected && _rect.Contains(currentEvent.mousePosition))
+        else if (_rect.Contains(currentEvent.mousePosition))
+        {
           EditorGUI.DrawRect(_rect, MouseOverColor);
+        }
+
         if (ChildNodes.Count > 0 && !_parentTree.DrawInSearchMode)
         {
-          EditorIcon editorIcon = Toggled ? EditorIcons.TriangleDown : EditorIcons.TriangleRight;
+          EditorIcon editorIcon = Expanded ? EditorIcons.TriangleDown : EditorIcons.TriangleRight;
           _triangleRect = _labelRect.AlignLeft(DropdownStyle.TriangleSize).AlignMiddle(DropdownStyle.TriangleSize);
           _triangleRect.x -= DropdownStyle.TriangleSize;
 
@@ -177,7 +219,8 @@
 
         GUIStyle style = isSelected ? DropdownStyle.SelectedLabelStyle : DropdownStyle.DefaultLabelStyle;
         _labelRect = _labelRect.AlignMiddle(16f);
-        GUI.Label(_labelRect, Name, style);
+        string label = _parentTree.DrawInSearchMode ? FullTypeName : Name;
+        GUI.Label(_labelRect, label, style);
         bool flag = true;
         if (isSelected || _previousNodeWasSelected)
         {
@@ -209,13 +252,6 @@
       if (type != EventType.MouseUp || ChildNodes.Count != 0)
         return;
       Event.current.Use();
-    }
-
-    private string GetFullPath()
-    {
-      EnsureInitialized();
-      SelectionNode parent = Parent;
-      return parent == null ? Name : parent.GetFullPath() + "/" + Name;
     }
 
     private void HandleMouseEvents(Rect rect)
@@ -252,7 +288,7 @@
       {
         if (ChildNodes.Any())
         {
-          Toggled = ! Toggled;
+          Expanded = ! Expanded;
         }
         else
         {
@@ -276,12 +312,6 @@
 
       if (includeSelf)
         yield return self;
-    }
-
-    private void EnsureInitialized()
-    {
-      if (!_isInitialized)
-        _parentTree.UpdateSelectionTree();
     }
   }
 }

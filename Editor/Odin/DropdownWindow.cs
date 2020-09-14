@@ -102,7 +102,7 @@
       {
         _scrollPos = EditorDrawHelper.DrawInScrollView(_scrollPos, () =>
         {
-          float contentHeight = EditorDrawHelper.DrawVertically(_selectionTree.Draw, _preventExpandingHeight);
+          float contentHeight = EditorDrawHelper.DrawVertically(_selectionTree.Draw, _preventExpandingHeight, DropdownStyle.BackgroundColor);
 
           if (_contentHeight == 0f || Event.current.type == EventType.Repaint)
             _contentHeight = contentHeight;

@@ -5,13 +5,15 @@
 
     public readonly struct TypeItem
     {
-        public readonly string Name;
+        public readonly string Path;
         public readonly Type Type;
+        public readonly string FullTypeName;
 
         public TypeItem(Type type, Grouping grouping)
         {
-            Name = TypeNameFormatter.Format(type, grouping);
+            FullTypeName = type.FullName ?? string.Empty;
             Type = type;
+            Path = TypeNameFormatter.Format(Type, FullTypeName, grouping);
         }
     }
 
@@ -19,7 +21,7 @@
     {
         public int Compare(TypeItem x, TypeItem y)
         {
-            return string.Compare(x.Name, y.Name, StringComparison.Ordinal);
+            return string.Compare(x.Path, y.Path, StringComparison.Ordinal);
         }
     }
 }
