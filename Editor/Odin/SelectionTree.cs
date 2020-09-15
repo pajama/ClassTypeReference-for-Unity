@@ -33,7 +33,6 @@
       _root = SelectionNode.CreateRoot(this);
       _onTypeSelected = onTypeSelected;
       SelectionPaths = items.Select(item => item.Path).ToArray();
-      SetupAutoScroll();
       FillTreeWithItems(items);
       SetSelection(items, selectedType);
     }
@@ -97,12 +96,12 @@
         return;
 
       SelectionNode itemToSelect = _root;
+
       foreach (string part in nameOfItemToSelect.Split('/'))
-      {
         itemToSelect = itemToSelect.FindChild(part);
-      }
 
       itemToSelect.Select();
+      ScrollToNode(itemToSelect);
     }
 
     private void DrawSearchToolbar()
@@ -130,14 +129,6 @@
     private void DisableSearchMode()
     {
       DrawInSearchMode = false;
-      SearchModeTree.Clear();
-
-      if (SelectedNode == null)
-        return;
-
-      foreach (SelectionNode item in SelectedNode.GetParentNodesRecursive(false))
-        item.Expanded = true;
-
       ScrollToNode(SelectedNode);
     }
 
@@ -188,7 +179,6 @@
     private void DrawTree()
     {
       Rect outerRect = EditorGUILayout.BeginVertical();
-      SelectionTreeActivationZone(outerRect);
       if (Event.current.type == EventType.Repaint)
         _outerScrollViewRect = outerRect;
       _scrollPos = _hideScrollbarsWhileContentIsExpanding <= 0 ?
@@ -237,14 +227,6 @@
       ScrollToNode(_scrollToWhenReady);
     }
 
-    private void SetupAutoScroll()
-    {
-      SelectionChanged += () =>
-      {
-        ScrollToNode(SelectedNode);
-      };
-    }
-
     private void ScrollToNode(SelectionNode node)
     {
       if (node == null)
@@ -275,41 +257,23 @@
       _scrollToWhenReady = null;
     }
 
-    private static void SelectionTreeActivationZone(Rect rect)
+    private string DrawSearchField(Rect innerToolbarArea, string searchText)
     {
-      if (Event.current.rawType == EventType.MouseDown && rect.Contains(Event.current.mousePosition) && GUIHelper.CurrentWindowHasFocus)
-        GUIHelper.RequestRepaint();
-    }
+      (Rect searchFieldArea, Rect buttonArea) = innerToolbarArea.CutVertically(DropdownStyle.IconSize, true);
 
-    private string DrawSearchField(Rect rect, string searchTerm)
-    {
-      GUIHelper.PushIndentLevel(0);
-      rect = rect.AlignTop(16f);
-      rect.width -= 16f;
+      searchText = EditorDrawHelper.FocusedTextField(searchFieldArea, searchText, "Search",
+        DropdownStyle.SearchToolbarStyle, _searchFieldControlName);
 
-      GUI.SetNextControlName(_searchFieldControlName);
-      if (Event.current.type == EventType.Repaint && string.IsNullOrEmpty(searchTerm))
+      if (DrawHelper.CloseButton(buttonArea))
       {
-        GUI.Label(rect.AddXMin(14f), GUIHelper.TempContent("Search"), SirenixGUIStyles.LeftAlignedGreyMiniLabel);
-      }
-
-      EditorGUI.FocusTextInControl(_searchFieldControlName);
-      rect.x += rect.width;
-      rect.width = 16f;
-      if (GUI.Button(rect, GUIContent.none, SirenixGUIStyles.ToolbarSearchCancelButton))
-      {
-        searchTerm = string.Empty;
-        GUIHelper.RemoveFocusControl();
-        GUIHelper.RequestRepaint();
+        searchText = string.Empty;
+        GUI.FocusControl(null); // Without this, the old text does not disappear for some reason.
         GUI.changed = true;
       }
 
-      GUIHelper.PopIndentLevel();
-
-      GUIHelper.RequestRepaint();
       HandleUtility.Repaint();
 
-      return searchTerm;
+      return searchText;
     }
   }
 }

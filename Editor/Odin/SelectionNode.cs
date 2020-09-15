@@ -96,17 +96,16 @@
     }
 
     public IEnumerable<SelectionNode> GetParentNodesRecursive(
-      bool includeSelf,
-      bool includeRoot = false)
+      bool includeSelf)
     {
       SelectionNode self = this;
-      if (includeSelf || self._parentNode == null & includeRoot)
+      if (includeSelf)
         yield return self;
 
       if (self._parentNode == null)
         yield break;
 
-      foreach (SelectionNode node in self._parentNode.GetParentNodesRecursive(true, includeRoot))
+      foreach (SelectionNode node in self._parentNode.GetParentNodesRecursive(true))
         yield return node;
     }
 
@@ -186,8 +185,8 @@
         if (ChildNodes.Count > 0 && !_parentTree.DrawInSearchMode)
         {
           EditorIcon editorIcon = Expanded ? EditorIcons.TriangleDown : EditorIcons.TriangleRight;
-          _triangleRect = _labelRect.AlignLeft(DropdownStyle.TriangleSize).AlignMiddle(DropdownStyle.TriangleSize);
-          _triangleRect.x -= DropdownStyle.TriangleSize;
+          _triangleRect = _labelRect.AlignLeft(DropdownStyle.IconSize).AlignMiddle(DropdownStyle.IconSize);
+          _triangleRect.x -= DropdownStyle.IconSize;
 
           if (currentEventType == EventType.Repaint)
           {
