@@ -19,14 +19,13 @@
     private readonly SelectionNode _root;
     private readonly string _searchFieldControlName = Guid.NewGuid().ToString();
     private readonly Action<Type> _onTypeSelected;
+    private readonly Scrollbar _scrollbar = new Scrollbar();
 
-    private Vector2 _scrollPos;
     private string _searchString = string.Empty;
     private SelectionNode _selectedNode;
     private SelectionNode _scrollToWhenReady;
     private Rect _outerScrollViewRect;
     private Rect _innerScrollViewRect;
-    private int _hideScrollbarsWhileContentIsExpanding;
 
     public SelectionTree(SortedSet<TypeItem> items, Type selectedType, Action<Type> onTypeSelected)
     {
@@ -101,7 +100,7 @@
         itemToSelect = itemToSelect.FindChild(part);
 
       itemToSelect.Select();
-      ScrollToNode(itemToSelect);
+      _scrollbar.ScrollToNode(itemToSelect);
     }
 
     private void DrawSearchToolbar()
@@ -129,13 +128,13 @@
     private void DisableSearchMode()
     {
       DrawInSearchMode = false;
-      ScrollToNode(SelectedNode);
+      _scrollbar.ScrollToNode(SelectedNode);
     }
 
     private void EnableSearchMode()
     {
       if ( ! DrawInSearchMode)
-        _scrollPos = new Vector2(0f, 0f);
+        _scrollbar.ToTop();
 
       DrawInSearchMode = true;
       SearchModeTree.Clear();
@@ -181,9 +180,9 @@
       Rect outerRect = EditorGUILayout.BeginVertical();
       if (Event.current.type == EventType.Repaint)
         _outerScrollViewRect = outerRect;
-      _scrollPos = _hideScrollbarsWhileContentIsExpanding <= 0 ?
-        EditorGUILayout.BeginScrollView(_scrollPos, GUILayout.ExpandHeight(false)) :
-        EditorGUILayout.BeginScrollView(_scrollPos, GUIStyle.none, GUIStyle.none, GUILayout.ExpandHeight(false));
+
+      _scrollbar.Draw();
+
       Rect rect = EditorGUILayout.BeginVertical();
       if (_innerScrollViewRect.height == 0.0 || Event.current.type == EventType.Repaint)
       {
@@ -191,20 +190,16 @@
         float f = Mathf.Abs(_innerScrollViewRect.height - _outerScrollViewRect.height);
         if (_innerScrollViewRect.height - 40.0 <= _outerScrollViewRect.height && num > 0.0)
         {
-          _hideScrollbarsWhileContentIsExpanding = 5;
+          _scrollbar.Visible = false;
           GUIHelper.RequestRepaint();
         }
         else if (Mathf.Abs(f) < 1.0)
         {
-          _hideScrollbarsWhileContentIsExpanding = 5;
+          _scrollbar.Visible = false;
         }
         else
         {
-          --_hideScrollbarsWhileContentIsExpanding;
-          if (_hideScrollbarsWhileContentIsExpanding < 0)
-            _hideScrollbarsWhileContentIsExpanding = 0;
-          else
-            GUIHelper.RequestRepaint();
+          _scrollbar.Visible = true;
         }
 
         _innerScrollViewRect = rect;
@@ -224,37 +219,7 @@
       EditorGUILayout.EndScrollView();
 
       EditorGUILayout.EndVertical();
-      ScrollToNode(_scrollToWhenReady);
-    }
-
-    private void ScrollToNode(SelectionNode node)
-    {
-      if (node == null)
-        return;
-
-      _scrollToWhenReady = node;
-
-      foreach (SelectionNode parentNode in node.GetParentNodesRecursive(false))
-        parentNode.Expanded = true;
-
-      if ( ! node.IsVisible())
-        return;
-
-      if (_outerScrollViewRect.height == 0f || node.Rect.height <= 0.01f || Event.current == null || Event.current.type != EventType.Repaint)
-        return;
-
-      Rect rect1 = node.Rect;
-
-      Rect rect2 = _outerScrollViewRect.AlignCenterY(rect1.height);
-      float num1 = rect1.yMin - (_innerScrollViewRect.y + _scrollPos.y - rect2.y);
-      float num2 = (float) (rect1.yMax - (double) rect2.height + _innerScrollViewRect.y - (_scrollPos.y + (double) rect2.y));
-
-      if (num1 < 0.0)
-        _scrollPos.y += num1;
-      if (num2 > 0.0)
-        _scrollPos.y += num2;
-
-      _scrollToWhenReady = null;
+      _scrollbar.ScrollToNodeIfNeeded(_outerScrollViewRect, _innerScrollViewRect);
     }
 
     private string DrawSearchField(Rect innerToolbarArea, string searchText)

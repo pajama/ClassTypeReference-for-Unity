@@ -144,13 +144,6 @@
         childItem.DrawSelfAndChildren(indentLevel + 1, visibleRect);
     }
 
-    public bool IsVisible()
-    {
-      return _parentTree.DrawInSearchMode ?
-        _parentTree.SearchModeTree.Contains(this) :
-        ParentNodesBottomUp(false).All(x => x.Expanded);
-    }
-
     private void AddChild(SelectionNode childNode) => ChildNodes.Add(childNode);
 
     private void Draw(int indentLevel, Rect visibleRect)
