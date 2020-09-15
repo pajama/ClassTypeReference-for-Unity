@@ -14,7 +14,7 @@
     public static Event CurrentEvent;
     public static EventType CurrentEventType;
 
-    public readonly List<SelectionNode> SearchModeTree = new List<SelectionNode>();
+    private readonly List<SelectionNode> _searchModeTree = new List<SelectionNode>();
 
     private readonly SelectionNode _root;
     private readonly string _searchFieldControlName = Guid.NewGuid().ToString();
@@ -70,7 +70,9 @@
       else
       {
         EditorDrawHelper.DrawWithSearchToolbarStyle(DrawSearchToolbar, DropdownStyle.SearchToolbarHeight);
-        DrawTree();
+
+        _scrollbar.DrawWithScrollbar(DrawTree);
+        _scrollbar.ScrollToNodeIfNeeded();
       }
     }
 
@@ -100,7 +102,7 @@
         itemToSelect = itemToSelect.FindChild(part);
 
       itemToSelect.Select();
-      _scrollbar.ScrollToNode(itemToSelect);
+      _scrollbar.BeginScrollToNode(itemToSelect);
     }
 
     private void DrawSearchToolbar()
@@ -128,7 +130,7 @@
     private void DisableSearchMode()
     {
       DrawInSearchMode = false;
-      _scrollbar.ScrollToNode(SelectedNode);
+      _scrollbar.BeginScrollToNode(SelectedNode);
     }
 
     private void EnableSearchMode()
@@ -137,8 +139,8 @@
         _scrollbar.ToTop();
 
       DrawInSearchMode = true;
-      SearchModeTree.Clear();
-      SearchModeTree.AddRange(EnumerateTree().Where(x => x.Type != null).Select(x =>
+      _searchModeTree.Clear();
+      _searchModeTree.AddRange(EnumerateTree().Where(x => x.Type != null).Select(x =>
       {
         bool includeInSearch = FuzzySearch.CanBeIncluded(_searchString, x.FullTypeName, out int score);
         return new
@@ -157,69 +159,21 @@
         DropdownStyle.SearchToolbarHeight,
         GUILayout.ExpandWidth(true));
 
-      Rect innerToolbarArea = outerToolbarArea;
-      AddHorizontalPadding(ref innerToolbarArea, 10f, 2f);
-      AlignMiddleVertically(ref innerToolbarArea, 16f);
+      Rect innerToolbarArea = outerToolbarArea
+        .AddHorizontalPadding(10f, 2f)
+        .AlignMiddleVertically(16f);
+
       return innerToolbarArea;
     }
 
-    private static void AddHorizontalPadding(ref Rect rect, float leftPadding, float rightPadding)
+    private void DrawTree(Rect visibleRect)
     {
-      rect.xMin += leftPadding;
-      rect.width -= rightPadding;
-    }
-
-    private static void AlignMiddleVertically(ref Rect rect, float height)
-    {
-      rect.y = rect.y + rect.height * 0.5f - height * 0.5f;
-      rect.height = height;
-    }
-
-    private void DrawTree()
-    {
-      Rect outerRect = EditorGUILayout.BeginVertical();
-      if (Event.current.type == EventType.Repaint)
-        _outerScrollViewRect = outerRect;
-
-      _scrollbar.Draw();
-
-      Rect rect = EditorGUILayout.BeginVertical();
-      if (_innerScrollViewRect.height == 0.0 || Event.current.type == EventType.Repaint)
-      {
-        float num = Mathf.Abs(_innerScrollViewRect.height - rect.height);
-        float f = Mathf.Abs(_innerScrollViewRect.height - _outerScrollViewRect.height);
-        if (_innerScrollViewRect.height - 40.0 <= _outerScrollViewRect.height && num > 0.0)
-        {
-          _scrollbar.Visible = false;
-          GUIHelper.RequestRepaint();
-        }
-        else if (Mathf.Abs(f) < 1.0)
-        {
-          _scrollbar.Visible = false;
-        }
-        else
-        {
-          _scrollbar.Visible = true;
-        }
-
-        _innerScrollViewRect = rect;
-      }
-
-      GUILayout.Space(-1f);
-
-      var visibleRect = GUIClipInfo.VisibleRect.Expand(300f);
       CurrentEvent = Event.current;
       CurrentEventType = CurrentEvent.type;
-      List<SelectionNode> nodes = DrawInSearchMode ? SearchModeTree : Nodes;
+      List<SelectionNode> nodes = DrawInSearchMode ? _searchModeTree : Nodes;
       int count = nodes.Count;
       for (int index = 0; index < count; ++index)
         nodes[index].DrawSelfAndChildren(0, visibleRect);
-
-      EditorGUILayout.EndVertical();
-      EditorGUILayout.EndScrollView();
-
-      EditorGUILayout.EndVertical();
-      _scrollbar.ScrollToNodeIfNeeded(_outerScrollViewRect, _innerScrollViewRect);
     }
 
     private string DrawSearchField(Rect innerToolbarArea, string searchText)
