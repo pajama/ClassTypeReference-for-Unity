@@ -51,7 +51,7 @@
 
             foreach (string folderName in path.Split('/'))
             {
-                SelectionNode folderNode = parentNode.FindNode(folderName);
+                SelectionNode folderNode = parentNode.FindChild(folderName);
 
                 if (folderNode == null)
                     folderNode = parentNode.CreateChildFolder(folderName);

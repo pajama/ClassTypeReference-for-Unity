@@ -120,7 +120,7 @@
     /// </remarks>
     /// <param name="name">Name of the node to find.</param>
     /// <returns>Direct child node with the matching name or null.</returns>
-    public SelectionNode FindNode(string name)
+    public SelectionNode FindChild(string name)
     {
       SelectionNode foundNode = null;
       for (int index = ChildNodes.Count - 1; index >= 0; --index)

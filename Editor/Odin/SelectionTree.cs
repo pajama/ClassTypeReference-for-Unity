@@ -99,7 +99,7 @@
       SelectionNode itemToSelect = _root;
       foreach (string part in nameOfItemToSelect.Split('/'))
       {
-        itemToSelect = itemToSelect.FindNode(part);
+        itemToSelect = itemToSelect.FindChild(part);
       }
 
       itemToSelect.Select();
@@ -107,12 +107,8 @@
 
     private void DrawSearchToolbar()
     {
+      Rect innerToolbarArea = GetInnerToolbarArea();
 
-      Rect outerToolbarArea = GUILayoutUtility.GetRect(0.0f, DropdownStyle.SearchToolbarHeight, GUILayout.ExpandWidth(true));
-      if (Event.current.type == EventType.Repaint)
-        GUIStyle.none.Draw(outerToolbarArea, GUIContent.none, 0);
-
-      Rect innerToolbarArea = CalculateInnerToolbarArea(outerToolbarArea);
       bool changed = EditorDrawHelper.CheckIfChanged(() =>
       {
         _searchString = DrawSearchField(innerToolbarArea, _searchString);
@@ -164,8 +160,13 @@
       }).Where(x => x.include).OrderByDescending(x => x.score).Select(x => x.item));
     }
 
-    private static Rect CalculateInnerToolbarArea(Rect outerToolbarArea)
+    private static Rect GetInnerToolbarArea()
     {
+      Rect outerToolbarArea = GUILayoutUtility.GetRect(
+        0.0f,
+        DropdownStyle.SearchToolbarHeight,
+        GUILayout.ExpandWidth(true));
+
       Rect innerToolbarArea = outerToolbarArea;
       AddHorizontalPadding(ref innerToolbarArea, 10f, 2f);
       AlignMiddleVertically(ref innerToolbarArea, 16f);
@@ -282,16 +283,28 @@
 
     private string DrawSearchField(Rect rect, string searchTerm)
     {
-      bool flag1 = GUI.GetNameOfFocusedControl() == _searchFieldControlName;
+      GUIHelper.PushIndentLevel(0);
+      rect = rect.AlignTop(16f);
+      rect.width -= 16f;
 
-      bool flag2 = flag1 && (Event.current.keyCode == KeyCode.DownArrow || Event.current.keyCode == KeyCode.UpArrow || (Event.current.keyCode == KeyCode.LeftArrow || Event.current.keyCode == KeyCode.RightArrow) || Event.current.keyCode == KeyCode.Return);
-      if (flag2)
-        GUIHelper.PushEventType(Event.current.type);
-      searchTerm = SirenixEditorGUI.SearchField(rect, searchTerm, true, _searchFieldControlName);
-      if (flag2)
+      GUI.SetNextControlName(_searchFieldControlName);
+      if (Event.current.type == EventType.Repaint && string.IsNullOrEmpty(searchTerm))
       {
-        GUIHelper.PopEventType();
+        GUI.Label(rect.AddXMin(14f), GUIHelper.TempContent("Search"), SirenixGUIStyles.LeftAlignedGreyMiniLabel);
       }
+
+      EditorGUI.FocusTextInControl(_searchFieldControlName);
+      rect.x += rect.width;
+      rect.width = 16f;
+      if (GUI.Button(rect, GUIContent.none, SirenixGUIStyles.ToolbarSearchCancelButton))
+      {
+        searchTerm = string.Empty;
+        GUIHelper.RemoveFocusControl();
+        GUIHelper.RequestRepaint();
+        GUI.changed = true;
+      }
+
+      GUIHelper.PopIndentLevel();
 
       GUIHelper.RequestRepaint();
       HandleUtility.Repaint();
