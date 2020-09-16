@@ -1,4 +1,4 @@
-﻿namespace TypeReferences.Editor.Odin
+﻿namespace TypeReferences.Editor.TypeDropdown
 {
   using System;
   using Test.Editor.OdinAttributeDrawers;
@@ -63,7 +63,7 @@
     private float CalculateOptimalWidth()
     {
       var style = DropdownStyle.DefaultLabelStyle;
-      float windowWidth = PopupHelper.CalculatePopupWidth(_selectionTree.SelectionPaths, style, false); // TODO: Make CalculatePopupWidth accept less variables
+      float windowWidth = PopupHelper.CalculatePopupWidth(_selectionTree.SelectionPaths, style, false);
       return windowWidth == 0f ? 400f : windowWidth;
     }
 

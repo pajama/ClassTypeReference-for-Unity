@@ -1,4 +1,4 @@
-﻿namespace TypeReferences.Editor.Odin
+﻿namespace TypeReferences.Editor.TypeDropdown
 {
   using System;
   using System.Collections.Generic;
@@ -10,9 +10,6 @@
 
   public partial class SelectionTree
   {
-    public static Event CurrentEvent;
-    public static EventType CurrentEventType;
-
     private readonly List<SelectionNode> _searchModeTree = new List<SelectionNode>();
 
     private readonly SelectionNode _root;
@@ -22,9 +19,6 @@
 
     private string _searchString = string.Empty;
     private SelectionNode _selectedNode;
-    private SelectionNode _scrollToWhenReady;
-    private Rect _outerScrollViewRect;
-    private Rect _innerScrollViewRect;
 
     public SelectionTree(SortedSet<TypeItem> items, Type selectedType, Action<Type> onTypeSelected)
     {
@@ -159,15 +153,13 @@
 
       Rect innerToolbarArea = outerToolbarArea
         .AddHorizontalPadding(10f, 2f)
-        .AlignMiddleVertically(16f);
+        .AlignMiddleVertically(DropdownStyle.LabelHeight);
 
       return innerToolbarArea;
     }
 
     private void DrawTree(Rect visibleRect)
     {
-      CurrentEvent = Event.current;
-      CurrentEventType = CurrentEvent.type;
       List<SelectionNode> nodes = DrawInSearchMode ? _searchModeTree : Nodes;
       int nodesListLength = nodes.Count;
       for (int index = 0; index < nodesListLength; ++index)
@@ -187,8 +179,6 @@
         GUI.FocusControl(null); // Without this, the old text does not disappear for some reason.
         GUI.changed = true;
       }
-
-      HandleUtility.Repaint();
 
       return searchText;
     }

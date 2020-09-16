@@ -1,4 +1,4 @@
-﻿namespace TypeReferences.Editor.Odin
+﻿namespace TypeReferences.Editor.TypeDropdown
 {
     using System;
     using System.Reflection;
