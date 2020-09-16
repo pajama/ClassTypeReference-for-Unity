@@ -17,35 +17,33 @@
 
         private static bool ScrollCannotBePerformed => Event.current.type != EventType.Repaint;
 
-        private Rect VisibleRect => VisibleRectGetter.Get();
+        private static Rect VisibleRect => VisibleRectGetter.Get();
 
         public void DrawWithScrollbar(Action<Rect> drawContent)
         {
-            Rect windowRect = EditorGUILayout.BeginVertical();
-
-            if (Event.current.type == EventType.Repaint)
-                _windowRect = windowRect;
-
-            DrawInScrollView(() =>
+            EditorDrawHelper.DrawVertically(windowRect =>
             {
-                Rect newWholeListRect = EditorDrawHelper.DrawVertically(() => { drawContent(VisibleRect); });
+                if (Event.current.type == EventType.Repaint)
+                    _windowRect = windowRect;
 
-                if (_wholeListRect.height == 0f || Event.current.type == EventType.Repaint)
+                DrawInScrollView(() =>
                 {
-                    _visible = _wholeListRect.height > _windowRect.height;
-                    _wholeListRect = newWholeListRect;
-                }
+                    Rect newWholeListRect = EditorDrawHelper.DrawVertically(() => { drawContent(VisibleRect); });
+
+                    if (_wholeListRect.height == 0f || Event.current.type == EventType.Repaint)
+                    {
+                        _visible = _wholeListRect.height > _windowRect.height;
+                        _wholeListRect = newWholeListRect;
+                    }
+                });
             });
 
-            EditorGUILayout.EndVertical();
+            ScrollToNodeIfNeeded();
         }
 
-        public void ToTop()
-        {
-            _position.y = 0f;
-        }
+        public void ToTop() => _position.y = 0f;
 
-        public void BeginScrollToNode(SelectionNode node)
+        public void RequestScrollToNode(SelectionNode node)
         {
             if (node == null)
                 return;
@@ -62,7 +60,7 @@
             _nodeToScrollTo = null;
         }
 
-        public void ScrollToNodeIfNeeded()
+        private void ScrollToNodeIfNeeded()
         {
             if (_nodeToScrollTo == null || ScrollCannotBePerformed)
                 return;

@@ -3,7 +3,6 @@
   using System;
   using System.Collections.Generic;
   using System.Linq;
-  using Sirenix.Utilities.Editor;
   using Test.Editor.OdinAttributeDrawers;
   using UnityEditor;
   using UnityEngine;
@@ -70,9 +69,7 @@
       else
       {
         EditorDrawHelper.DrawWithSearchToolbarStyle(DrawSearchToolbar, DropdownStyle.SearchToolbarHeight);
-
         _scrollbar.DrawWithScrollbar(DrawTree);
-        _scrollbar.ScrollToNodeIfNeeded();
       }
     }
 
@@ -102,7 +99,7 @@
         itemToSelect = itemToSelect.FindChild(part);
 
       itemToSelect.Select();
-      _scrollbar.BeginScrollToNode(itemToSelect);
+      _scrollbar.RequestScrollToNode(itemToSelect);
     }
 
     private void DrawSearchToolbar()
@@ -130,7 +127,7 @@
     private void DisableSearchMode()
     {
       DrawInSearchMode = false;
-      _scrollbar.BeginScrollToNode(SelectedNode);
+      _scrollbar.RequestScrollToNode(SelectedNode);
     }
 
     private void EnableSearchMode()
@@ -139,17 +136,18 @@
         _scrollbar.ToTop();
 
       DrawInSearchMode = true;
+
       _searchModeTree.Clear();
-      _searchModeTree.AddRange(EnumerateTree().Where(x => x.Type != null).Select(x =>
-      {
-        bool includeInSearch = FuzzySearch.CanBeIncluded(_searchString, x.FullTypeName, out int score);
-        return new
+      _searchModeTree.AddRange(EnumerateTree()
+        .Where(node => node.Type != null)
+        .Select(node =>
         {
-          score,
-          item = x,
-          include = includeInSearch
-        };
-      }).Where(x => x.include).OrderByDescending(x => x.score).Select(x => x.item));
+          bool includeInSearch = FuzzySearch.CanBeIncluded(_searchString, node.FullTypeName, out int score);
+          return new { score, item = node, include = includeInSearch };
+        })
+        .Where(x => x.include)
+        .OrderByDescending(x => x.score)
+        .Select(x => x.item));
     }
 
     private static Rect GetInnerToolbarArea()
@@ -157,7 +155,7 @@
       Rect outerToolbarArea = GUILayoutUtility.GetRect(
         0.0f,
         DropdownStyle.SearchToolbarHeight,
-        GUILayout.ExpandWidth(true));
+        DrawHelper.ExpandWidth(true));
 
       Rect innerToolbarArea = outerToolbarArea
         .AddHorizontalPadding(10f, 2f)
@@ -171,8 +169,8 @@
       CurrentEvent = Event.current;
       CurrentEventType = CurrentEvent.type;
       List<SelectionNode> nodes = DrawInSearchMode ? _searchModeTree : Nodes;
-      int count = nodes.Count;
-      for (int index = 0; index < count; ++index)
+      int nodesListLength = nodes.Count;
+      for (int index = 0; index < nodesListLength; ++index)
         nodes[index].DrawSelfAndChildren(0, visibleRect);
     }
 
