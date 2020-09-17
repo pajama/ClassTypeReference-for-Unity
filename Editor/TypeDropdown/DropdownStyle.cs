@@ -33,19 +33,23 @@
 
     public static readonly GUIStyle SearchToolbarStyle = new GUIStyle(GUI.skin.FindStyle("ToolbarSeachTextField"));
 
-    public static readonly Color MouseOverColor = new Color(1f, 1f, 1f, 0.028f);
+    private static readonly Color MouseOverColorDarkSkin = new Color(1f, 1f, 1f, 0.028f);
+    private static readonly Color MouseOverColorLightSkin = new Color(1f, 1f, 1f, 0.3f);
+
     private static readonly Color SelectedColorDarkSkin = new Color(0.243f, 0.373f, 0.588f, 1f);
     private static readonly Color SelectedColorLightSkin = new Color(0.243f, 0.49f, 0.9f, 1f);
+
     private static readonly Color BorderColorDarkSkin = new Color(0.11f, 0.11f, 0.11f, 0.8f);
     private static readonly Color BorderColorLightSkin = new Color(0.38f, 0.38f, 0.38f, 0.6f);
+
     private static readonly Color BackgroundColorDarkSkin = new Color(0.192f, 0.192f, 0.192f, 1f);
     private static readonly Color BackgroundColorLightSkin = new Color(0.0f, 0.0f, 0.0f, 0.0f);
 
-    public static Color SelectedColor => EditorGUIUtility.isProSkin ? SelectedColorDarkSkin : SelectedColorLightSkin;
+    public static Color MouseOverColor => DarkSkin ? MouseOverColorDarkSkin : MouseOverColorLightSkin;
+    public static Color SelectedColor => DarkSkin ? SelectedColorDarkSkin : SelectedColorLightSkin;
+    public static Color BorderColor => DarkSkin ? BorderColorDarkSkin : BorderColorLightSkin;
+    public static Color BackgroundColor => DarkSkin ? BackgroundColorDarkSkin : BackgroundColorLightSkin;
 
-    public static Color BorderColor => EditorGUIUtility.isProSkin ? BorderColorDarkSkin : BorderColorLightSkin;
-
-    public static Color BackgroundColor =>
-      EditorGUIUtility.isProSkin ? BackgroundColorDarkSkin : BackgroundColorLightSkin;
+    public static bool DarkSkin => EditorGUIUtility.isProSkin;
   }
 }

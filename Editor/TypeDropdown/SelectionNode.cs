@@ -3,12 +3,13 @@
   using System;
   using System.Collections.Generic;
   using System.Linq;
-  using Sirenix.Utilities;
   using Sirenix.Utilities.Editor;
   using Test.Editor.OdinAttributeDrawers;
   using UnityEditor;
   using UnityEngine;
   using UnityEngine.Assertions;
+  using EditorIcon = Test.Editor.OdinAttributeDrawers.EditorIcon;
+  using EditorIcons = Test.Editor.OdinAttributeDrawers.EditorIcons;
 
   [Serializable]
   public class SelectionNode
@@ -17,7 +18,6 @@
     public readonly string Name;
     public readonly Type Type;
 
-    private static bool _previousNodeWasSelected;
     private static SelectionNode _handleClickEventOnMouseUp;
 
     private readonly SelectionTree _parentTree;
@@ -94,6 +94,8 @@
     public Rect Rect => _rect;
 
     public string FullTypeName { get; }
+
+    private bool IsSelected => _parentTree.SelectedNode == this;
 
     /// <summary>
     /// Makes a folder expanded or closed.
@@ -188,7 +190,7 @@
         return;
 
       if (currentEventType == EventType.Repaint)
-        DoRepaint(indentLevel, currentEvent);
+        DrawNodeContent(indentLevel, currentEvent);
 
       _wasMouseDownEvent = currentEventType == EventType.MouseDown && _rect.Contains(currentEvent.mousePosition);
       if (_wasMouseDownEvent)
@@ -197,14 +199,9 @@
       HandleMouseEvents(_rect);
     }
 
-    private void DoRepaint(int indentLevel, Event currentEvent) // TODO: think of a better name for the method
+    private void DrawNodeContent(int indentLevel, Event currentEvent)
     {
-      Rect indentedNodeRect = _rect;
-      indentedNodeRect.xMin += DropdownStyle.GlobalOffset + indentLevel * DropdownStyle.IndentWidth;
-
-      bool isSelected = _parentTree.SelectedNode == this;
-
-      if (isSelected)
+      if (IsSelected)
       {
         EditorGUI.DrawRect(_rect, DropdownStyle.SelectedColor);
       }
@@ -213,38 +210,43 @@
         EditorGUI.DrawRect(_rect, DropdownStyle.MouseOverColor);
       }
 
+      Rect indentedNodeRect = _rect;
+      indentedNodeRect.xMin += DropdownStyle.GlobalOffset + indentLevel * DropdownStyle.IndentWidth;
+
       if (IsFolder)
       {
         Rect triangleRect = GetTriangleRect(indentedNodeRect);
-        DrawTriangleIcon(triangleRect, isSelected);
+        DrawTriangleIcon(triangleRect);
       }
 
-      Rect labelRect = indentedNodeRect.AlignMiddleVertically(DropdownStyle.LabelHeight);
-      string label = _parentTree.DrawInSearchMode ? FullTypeName : Name;
-      GUIStyle style = isSelected ? DropdownStyle.SelectedLabelStyle : DropdownStyle.DefaultLabelStyle;
-      GUI.Label(labelRect, label, style);
-      
-      // TODO get rid of the strange condition. I seemingly understand what isnotselected and isproskin for, but what is previousnodewasselected?
-      if ((! isSelected && ! _previousNodeWasSelected) || EditorGUIUtility.isProSkin)
-        SirenixEditorGUI.DrawHorizontalLineSeperator(_rect.x, _rect.y, _rect.width, DropdownStyle.BorderAlpha);
+      DrawLabel(indentedNodeRect);
 
-      _previousNodeWasSelected = isSelected;
+      SirenixEditorGUI.DrawHorizontalLineSeperator(_rect.x, _rect.y, _rect.width, DropdownStyle.BorderAlpha);
     }
 
-    private void DrawTriangleIcon(Rect triangleRect, bool isSelected)
+    private void DrawLabel(Rect indentedNodeRect)
+    {
+      Rect labelRect = indentedNodeRect.AlignMiddleVertically(DropdownStyle.LabelHeight);
+      string label = _parentTree.DrawInSearchMode ? FullTypeName : Name;
+      GUIStyle style = IsSelected ? DropdownStyle.SelectedLabelStyle : DropdownStyle.DefaultLabelStyle;
+      GUI.Label(labelRect, label, style);
+    }
+
+    private void DrawTriangleIcon(Rect triangleRect) // TODO: refactor
     {
       EditorIcon triangleIcon = Expanded ? EditorIcons.TriangleDown : EditorIcons.TriangleRight;
+      Debug.Log(EditorIcons.TriangleRightTest);
 
-      if (EditorGUIUtility.isProSkin)
+      if (DropdownStyle.DarkSkin)
       {
-        if (isSelected || _rect.Contains(Event.current.mousePosition))
+        if (IsSelected || _rect.Contains(Event.current.mousePosition))
           GUI.DrawTexture(triangleRect, triangleIcon.Highlighted);
         else
           GUI.DrawTexture(triangleRect, triangleIcon.Active);
       }
-      else if (isSelected)
+      else if (IsSelected)
       {
-        GUI.DrawTexture(triangleRect, triangleIcon.Raw);
+        GUI.DrawTexture(triangleRect, triangleIcon.Default);
       }
       else if (_rect.Contains(Event.current.mousePosition))
       {
