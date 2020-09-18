@@ -109,7 +109,7 @@
             EditorStyles.popup.Draw(_position, CachedTypeReference.FieldContent, controlID);
         }
 
-        private string GetTypeNameForField()
+        private string GetTypeNameForField(int depth = 2)
         {
             var typeParts = _serializedTypeRef.TypeNameAndAssembly.Split(',');
             string typeName = typeParts[0].Trim();
@@ -124,6 +124,13 @@
 
                 if (CachedTypeReference.GetType(_serializedTypeRef.TypeNameAndAssembly) == null)
                     typeName += MissingSuffix;
+            }
+
+            var split = typeName.Split('.');
+            typeName = "";
+            for(int i = 0; i < depth; i++)
+            {
+                typeName += "." + split[split.Length - depth + i];
             }
 
             return typeName;
