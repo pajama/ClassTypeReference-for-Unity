@@ -3,13 +3,11 @@
   using System;
   using System.Collections.Generic;
   using System.Linq;
-  using Sirenix.Utilities.Editor;
   using Test.Editor.OdinAttributeDrawers;
+  using Test.Editor.OdinAttributeDrawers.OdinRelated.EditorIconsRelated;
   using UnityEditor;
   using UnityEngine;
   using UnityEngine.Assertions;
-  using EditorIcon = Test.Editor.OdinAttributeDrawers.EditorIcon;
-  using EditorIcons = Test.Editor.OdinAttributeDrawers.EditorIcons;
 
   [Serializable]
   public class SelectionNode
@@ -18,14 +16,11 @@
     public readonly string Name;
     public readonly Type Type;
 
-    private static SelectionNode _handleClickEventOnMouseUp;
-
     private readonly SelectionTree _parentTree;
     private readonly SelectionNode _parentNode;
 
     private bool _expanded;
     private Rect _rect;
-    private bool _wasMouseDownEvent;
 
     /// <summary>
     /// Default constructor that creates a child node of another parent node.
@@ -62,10 +57,7 @@
     /// <summary>Creates a root node that does not have a parent and does not show up in the popup.</summary>
     /// <param name="parentTree">The tree this node belongs to.</param>
     /// <returns>The root node.</returns>
-    public static SelectionNode CreateRoot(SelectionTree parentTree)
-    {
-      return new SelectionNode(parentTree);
-    }
+    public static SelectionNode CreateRoot(SelectionTree parentTree) => new SelectionNode(parentTree);
 
     /// <summary>Creates a dropdown item that represents a <see cref="System.Type"/>.</summary>
     /// <param name="name">Name that will show up in the popup.</param>
@@ -77,7 +69,7 @@
     public SelectionNode CreateChildItem(string name, Type type, string fullTypeName)
     {
       var child = new SelectionNode(name, this, _parentTree, type, fullTypeName);
-      AddChild(child);
+      ChildNodes.Add(child);
       return child;
     }
 
@@ -87,15 +79,13 @@
     public SelectionNode CreateChildFolder(string name)
     {
       var child = new SelectionNode(name, this, _parentTree, null, null);
-      AddChild(child);
+      ChildNodes.Add(child);
       return child;
     }
 
     public Rect Rect => _rect;
 
     public string FullTypeName { get; }
-
-    private bool IsSelected => _parentTree.SelectedNode == this;
 
     /// <summary>
     /// Makes a folder expanded or closed.
@@ -107,12 +97,13 @@
       set => _expanded = value;
     }
 
+    private bool IsSelected => _parentTree.SelectedNode == this;
+
     private bool IsFolder => ChildNodes.Count != 0;
 
-    public void Select()
-    {
-      _parentTree.SelectedNode = this;
-    }
+    private bool IsHoveredOver => _rect.Contains(Event.current.mousePosition);
+
+    public void Select() => _parentTree.SelectedNode = this;
 
     public IEnumerable<SelectionNode> GetChildNodesRecursive()
     {
@@ -167,45 +158,35 @@
         childItem.DrawSelfAndChildren(indentLevel + 1, visibleRect);
     }
 
-    private void AddChild(SelectionNode childNode) => ChildNodes.Add(childNode);
-
-    private bool NodeIsOutsideOfVisibleRect(Rect visibleRect)
-    {
-      return _rect.y + _rect.height < visibleRect.y || _rect.y > visibleRect.y + visibleRect.height;
-    }
-
     private void Draw(int indentLevel, Rect visibleRect)
     {
       Rect buttonRect = GUILayoutUtility.GetRect(0f, DropdownStyle.NodeHeight);
-      Event currentEvent = Event.current;
-      EventType currentEventType = currentEvent.type;
 
-      if (currentEventType == EventType.Layout)
+      if (Event.current.type == EventType.Layout)
         return;
 
-      if (currentEventType == EventType.Repaint || _rect.width == 0f)
+      if (Event.current.type == EventType.Repaint || _rect.width == 0f)
         _rect = buttonRect;
 
       if (_rect.y > 1000f && NodeIsOutsideOfVisibleRect(visibleRect))
         return;
 
-      if (currentEventType == EventType.Repaint)
-        DrawNodeContent(indentLevel, currentEvent);
+      if (Event.current.type == EventType.Repaint)
+        DrawNodeContent(indentLevel);
 
-      _wasMouseDownEvent = currentEventType == EventType.MouseDown && _rect.Contains(currentEvent.mousePosition);
-      if (_wasMouseDownEvent)
-        _handleClickEventOnMouseUp = this;
-      SelectOnClick();
-      HandleMouseEvents(_rect);
+      HandleMouseEvents();
     }
 
-    private void DrawNodeContent(int indentLevel, Event currentEvent)
+    private bool NodeIsOutsideOfVisibleRect(Rect visibleRect) =>
+      _rect.y + _rect.height < visibleRect.y || _rect.y > visibleRect.y + visibleRect.height;
+
+    private void DrawNodeContent(int indentLevel)
     {
       if (IsSelected)
       {
         EditorGUI.DrawRect(_rect, DropdownStyle.SelectedColor);
       }
-      else if (_rect.Contains(currentEvent.mousePosition))
+      else if (IsHoveredOver)
       {
         EditorGUI.DrawRect(_rect, DropdownStyle.MouseOverColor);
       }
@@ -221,43 +202,24 @@
 
       DrawLabel(indentedNodeRect);
 
-      SirenixEditorGUI.DrawHorizontalLineSeperator(_rect.x, _rect.y, _rect.width, DropdownStyle.BorderAlpha);
+      DrawSeparator();
     }
 
-    private void DrawLabel(Rect indentedNodeRect)
+    private void HandleMouseEvents()
     {
-      Rect labelRect = indentedNodeRect.AlignMiddleVertically(DropdownStyle.LabelHeight);
-      string label = _parentTree.DrawInSearchMode ? FullTypeName : Name;
-      GUIStyle style = IsSelected ? DropdownStyle.SelectedLabelStyle : DropdownStyle.DefaultLabelStyle;
-      GUI.Label(labelRect, label, style);
-    }
+      bool leftMouseButtonWasPressed = Event.current.type == EventType.MouseDown
+                                       && IsHoveredOver
+                                       && Event.current.button == 0;
 
-    private void DrawTriangleIcon(Rect triangleRect) // TODO: refactor
-    {
-      EditorIcon triangleIcon = Expanded ? EditorIcons.TriangleDown : EditorIcons.TriangleRight;
-      Debug.Log(EditorIcons.TriangleRightTest);
+      if ( ! leftMouseButtonWasPressed)
+        return;
 
-      if (DropdownStyle.DarkSkin)
-      {
-        if (IsSelected || _rect.Contains(Event.current.mousePosition))
-          GUI.DrawTexture(triangleRect, triangleIcon.Highlighted);
-        else
-          GUI.DrawTexture(triangleRect, triangleIcon.Active);
-      }
-      else if (IsSelected)
-      {
-        GUI.DrawTexture(triangleRect, triangleIcon.Default);
-      }
-      else if (_rect.Contains(Event.current.mousePosition))
-      {
-        GUI.DrawTexture(triangleRect, triangleIcon.Active);
-      }
+      if (IsFolder)
+        Expanded = !Expanded;
       else
-      {
-        GUIHelper.PushColor(new Color(1f, 1f, 1f, 0.7f));
-        GUI.DrawTexture(triangleRect, triangleIcon.Active);
-        GUIHelper.PopColor();
-      }
+        Select();
+
+      Event.current.Use();
     }
 
     private Rect GetTriangleRect(Rect nodeRect)
@@ -268,75 +230,31 @@
       return triangleRect;
     }
 
-    private void SelectOnClick()
+    private void DrawTriangleIcon(Rect triangleRect)
     {
-      EventType type = Event.current.type;
-      if (type == EventType.Layout || !Rect.Contains(Event.current.mousePosition))
-        return;
-      GUIHelper.RequestRepaint();
-      if (type != EventType.MouseUp || IsFolder)
-        return;
-      Event.current.Use();
+      EditorIcon triangleIcon = Expanded ? EditorIcons.TriangleDown : EditorIcons.TriangleRight;
+
+      Texture2D tintedIcon = IsHoveredOver
+        ? triangleIcon.Highlighted
+        : triangleIcon.Active;
+
+      tintedIcon.Draw(triangleRect);
     }
 
-    private void HandleMouseEvents(Rect rect)
+    private void DrawLabel(Rect indentedNodeRect)
     {
-      switch (Event.current.type)
-      {
-        case EventType.Used when _wasMouseDownEvent:
-        {
-          _wasMouseDownEvent = false;
-          _handleClickEventOnMouseUp = this;
-          break;
-        }
-
-        case EventType.MouseUp:
-        {
-          if (_handleClickEventOnMouseUp != this)
-            return;
-          break;
-        }
-
-        case EventType.MouseDown:
-          break;
-
-        default:
-          return;
-      }
-
-      _handleClickEventOnMouseUp = null;
-      _wasMouseDownEvent = false;
-      if (!rect.Contains(Event.current.mousePosition))
-        return;
-
-      if (Event.current.button == 0)
-      {
-        if (ChildNodes.Any())
-        {
-          Expanded = ! Expanded;
-        }
-        else
-        {
-          Select();
-        }
-      }
-
-      GUIHelper.RemoveFocusControl();
-      Event.current.Use();
+      Rect labelRect = indentedNodeRect.AlignMiddleVertically(DropdownStyle.LabelHeight);
+      string label = _parentTree.DrawInSearchMode ? FullTypeName : Name;
+      GUIStyle style = IsSelected ? DropdownStyle.SelectedLabelStyle : DropdownStyle.DefaultLabelStyle;
+      GUI.Label(labelRect, label, style);
     }
 
-    private IEnumerable<SelectionNode> ParentNodesBottomUp(
-      bool includeSelf = true)
+    private void DrawSeparator()
     {
-      SelectionNode self = this;
-      if (self._parentNode != null)
-      {
-        foreach (SelectionNode node in self._parentNode.ParentNodesBottomUp())
-          yield return node;
-      }
-
-      if (includeSelf)
-        yield return self;
+      var lineRect = new Rect(_rect.x, _rect.y - 1f, _rect.width, 1f);
+      EditorGUI.DrawRect(lineRect, DropdownStyle.DarkSeparatorLine);
+      ++lineRect.y;
+      EditorGUI.DrawRect(lineRect, DropdownStyle.LightSeparatorLine);
     }
   }
 }

@@ -10,7 +10,6 @@
     public const float GlobalOffset = 20f;
     public const float IndentWidth = 15f;
     public const float IconSize = 16f;
-    public const float BorderAlpha = 0.323f;
     public const float MaxWindowHeight = 600f;
     public const float SearchToolbarHeight = 22f;
 
@@ -45,10 +44,18 @@
     private static readonly Color BackgroundColorDarkSkin = new Color(0.192f, 0.192f, 0.192f, 1f);
     private static readonly Color BackgroundColorLightSkin = new Color(0.0f, 0.0f, 0.0f, 0.0f);
 
+    private static readonly Color DarkSeparatorLineDarkSkin = new Color(0.11f, 0.11f, 0.11f, 0.258f);
+    private static readonly Color DarkSeparatorLineLightSkin = new Color(0.0f, 0.0f, 0.0f, 0.065f);
+
+    private static readonly Color LightSeparatorLineDarkSkin = new Color(1f, 1f, 1f, 0.033f);
+    private static readonly Color LightSeparatorLineLightSkin = new Color(1f, 1f, 1f, 0.323f);
+
     public static Color MouseOverColor => DarkSkin ? MouseOverColorDarkSkin : MouseOverColorLightSkin;
     public static Color SelectedColor => DarkSkin ? SelectedColorDarkSkin : SelectedColorLightSkin;
     public static Color BorderColor => DarkSkin ? BorderColorDarkSkin : BorderColorLightSkin;
     public static Color BackgroundColor => DarkSkin ? BackgroundColorDarkSkin : BackgroundColorLightSkin;
+    public static Color DarkSeparatorLine => DarkSkin ? DarkSeparatorLineDarkSkin : DarkSeparatorLineLightSkin;
+    public static Color LightSeparatorLine => DarkSkin ? LightSeparatorLineDarkSkin : LightSeparatorLineLightSkin;
 
     public static bool DarkSkin => EditorGUIUtility.isProSkin;
   }
